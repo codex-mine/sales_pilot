@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+coverage/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.venv/
+*.pyc
+.env
+.env.*
+!.env.example
+postgres_data/
+redis_data/

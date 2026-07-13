@@ -1,0 +1,28 @@
+{
+  "name": "ai-sales-agent",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@salespilot/web",
+    "build": "npm run build --workspace=@salespilot/web",
+    "lint": "npm run lint --workspace=@salespilot/web",
+    "typecheck": "npm run typecheck --workspace=@salespilot/web",
+    "test": "npm run test --workspace=@salespilot/web"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "overrides": {
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0"
+  }
+}
