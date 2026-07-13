@@ -3,12 +3,16 @@ services:
     build: { context: ., dockerfile: apps/web/Dockerfile }
     environment: [NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1]
     ports: ["3000:3000"]
+    restart: unless-stopped
     depends_on: [api]
   api:
     build: { context: ./apps/api, dockerfile: Dockerfile }
     env_file: .env
     ports: ["8000:8000"]
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
   postgres:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: ai_sales_agent, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
@@ -17,4 +21,5 @@ services:
   redis:
     image: redis:7-alpine
     volumes: [redis_data:/data]
+    restart: unless-stopped
 volumes: { postgres_data: {}, redis_data: {} }

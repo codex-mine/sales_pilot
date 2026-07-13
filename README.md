@@ -32,3 +32,8 @@ The API is versioned under `/api/v1`, returns a consistent `success/data/message
 - Add migrations through Alembic before shipping model changes.
 
 See [architecture notes](docs/architecture.md) and [contributing guide](docs/contributing.md).
+
+
+## Running locally
+
+Follow the [local development guide](docs/local-development.md) for Docker, non-Docker, database reset, and the full authentication flow. The planned delivery sequence is in the [roadmap](docs/roadmap.md).
