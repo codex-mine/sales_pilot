@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, login } from "@/features/auth/api/login";
 import { useAuthStore } from "@/store/auth-store";
 
 const schema = z.object({
@@ -17,7 +18,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage(): React.ReactElement {
   const router = useRouter();
-  const setUser = useAuthStore((state) => state.setUser);
+  const setAuth = useAuthStore((state) => state.setAuth);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
@@ -28,19 +29,55 @@ export default function LoginPage(): React.ReactElement {
   const onSubmit = async (data: FormData) => {
     setSubmitError(null);
 
-    if (data.email === "admin@admin.com" && data.password === "Password123!") {
-      setUser({
-        id: "admin-1",
+    try {
+      const response = await login({
         email: data.email,
-        fullName: "Admin User",
-        role: "admin",
-        organizationId: null,
+        password: data.password,
       });
-      router.push("/dashboard");
-      return;
-    }
 
-    setSubmitError("Invalid email or password");
+      if (response.success && response.data?.access_token) {
+        const accessToken = response.data.access_token;
+        const previousToken = useAuthStore.getState().accessToken;
+
+        useAuthStore.setState({ accessToken, isAuthenticated: true });
+
+        try {
+          const profileResponse = await getCurrentUser();
+
+          if (profileResponse.success && profileResponse.data) {
+            setAuth({
+              accessToken,
+              user: {
+                id: profileResponse.data.id,
+                email: profileResponse.data.email,
+                fullName: profileResponse.data.full_name,
+                role: "member",
+                organizationId: null,
+                isVerified: profileResponse.data.is_verified,
+              },
+            });
+            router.replace("/dashboard");
+            return;
+          }
+        } catch (error) {
+          useAuthStore.setState({
+            accessToken: previousToken,
+            isAuthenticated: Boolean(previousToken),
+          });
+          throw error;
+        }
+      }
+
+      setSubmitError(response.message || "Invalid email or password");
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
+
+      setSubmitError(message || "Unable to sign in right now");
+    }
   };
 
   return (

@@ -8,6 +8,8 @@ Production-minded Phase 1 foundation for a multi-tenant AI SDR SaaS. This reposi
 2. Run `docker compose up --build`.
 3. Open `http://localhost:3000`; API health is at `http://localhost:8000/api/v1/health/live`.
 
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
 ## Repository layout
 
 ```

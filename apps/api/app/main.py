@@ -13,6 +13,7 @@ import app.models.session  # noqa: F401
 
 settings = get_settings()
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Local development is self-starting. Production must apply Alembic migrations
@@ -23,8 +24,22 @@ async def lifespan(_: FastAPI):
     yield
     await engine.dispose()
 
-app = FastAPI(title=settings.app_name, version="0.1.0", docs_url="/docs" if settings.environment != "production" else None, lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=[str(origin) for origin in settings.cors_origins], allow_credentials=True, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type", "X-Request-ID"])
+
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    docs_url="/docs" if settings.environment != "production" else None,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.middleware("http")
 async def security_and_request_id(request: Request, call_next):
@@ -35,6 +50,7 @@ async def security_and_request_id(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
 
 register_exception_handlers(app)
 app.include_router(router, prefix=settings.api_v1_prefix)
