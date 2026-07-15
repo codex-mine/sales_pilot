@@ -1,10 +1,121 @@
+"""
+JWT + opaque token issuance and verification.
+
+Two distinct token families are used deliberately:
+- Access/refresh tokens are JWTs (stateless verification, carry claims, have a
+  `jti` for logging/audit correlation).
+- Password-reset / email-verification / invitation tokens are opaque random
+  strings, not JWTs. They are single-use and short-lived by design, so there
+  is nothing to gain from making them self-describing — a JWT would only give
+  an attacker more to inspect. Only a SHA-256 hash of the opaque token is ever
+  persisted, mirroring how the refresh token hash is stored.
+"""
+
 import hashlib
 import secrets
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from jose import jwt
+from typing import Any
+
+from jose import JWTError, jwt
+
 from app.core.config import get_settings
-def create_access_token(subject: str) -> str:
-    settings = get_settings(); expiry = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
-    return jwt.encode({"sub": subject, "type": "access", "exp": expiry}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-def create_opaque_token() -> str: return secrets.token_urlsafe(48)
-def hash_token(token: str) -> str: return hashlib.sha256(token.encode()).hexdigest()
+from app.exceptions.errors import AuthenticationError
+
+
+@dataclass(frozen=True)
+class AccessTokenClaims:
+    """
+    Everything the access token asserts about the caller at issuance time.
+
+    None of this is trusted blindly by the server on protected routes beyond
+    identifying *who* is calling (`sub`) and *which session* issued the token
+    (`session_id`) — permission and role checks always re-query Role/Permission
+    tables. The claims exist so the frontend can render org/role context and
+    so `permissions_version` can be used as a cheap staleness hint (see
+    `User.permissions_version`).
+    """
+
+    user_id: str
+    organization_id: str
+    workspace_id: str
+    role_id: str | None
+    role_name: str | None
+    permissions_version: int
+    session_id: str
+
+
+def _new_jti() -> str:
+    return uuid.uuid4().hex
+
+
+def create_access_token(claims: AccessTokenClaims) -> str:
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": claims.user_id,
+        "organization_id": claims.organization_id,
+        "workspace_id": claims.workspace_id,
+        "role_id": claims.role_id,
+        "role_name": claims.role_name,
+        "permissions_version": claims.permissions_version,
+        "session_id": claims.session_id,
+        "type": "access",
+        "iss": settings.jwt_issuer,
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.jwt_access_token_expire_minutes),
+        "jti": _new_jti(),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def create_refresh_token(
+    user_id: str, session_id: str, *, remember_me: bool = False
+) -> tuple[str, str, datetime]:
+    """Returns (raw_jwt, jti, expires_at). The raw JWT is hashed by the caller before storage."""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    days = (
+        settings.jwt_refresh_token_remember_me_expire_days
+        if remember_me
+        else settings.jwt_refresh_token_expire_days
+    )
+    expires_at = now + timedelta(days=days)
+    jti = _new_jti()
+    payload = {
+        "sub": user_id,
+        "session_id": session_id,
+        "type": "refresh",
+        "iss": settings.jwt_issuer,
+        "iat": now,
+        "exp": expires_at,
+        "jti": jti,
+    }
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return token, jti, expires_at
+
+
+def decode_token(token: str, *, expected_type: str) -> dict[str, Any]:
+    """Raises AuthenticationError on any structural, signature, expiry, or type mismatch."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+        )
+    except JWTError as exc:
+        raise AuthenticationError("Invalid or expired token.") from exc
+    if payload.get("type") != expected_type:
+        raise AuthenticationError("Invalid token type.")
+    return payload
+
+
+def create_opaque_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()

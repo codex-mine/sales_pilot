@@ -1,0 +1,465 @@
+"""
+CRM Domain — Company, Contact, Lead, LeadScore, Tag, Note, Activity, Attachment.
+
+Architecture decisions:
+- Company and Contact are separate from Lead.
+  A Company can have many Contacts; a Lead is a *sales opportunity* that
+  links a Contact (the prospect) to a Company. This mirrors how HubSpot,
+  Salesforce, and Apollo model their CRM data. It avoids denormalization
+  (storing company info on every lead row) and allows re-use of company
+  research across multiple leads at the same company.
+
+- LeadScore is a separate table (not a column on Lead) because:
+  1. The score is computed by an AI agent and changes over time.
+  2. We keep a history of scores for trend analysis.
+  3. The score has multiple sub-dimensions (intent, fit, urgency) that
+     would pollute the Lead table.
+
+- Activity is an append-only event log. We never update activities.
+  This makes the timeline auditable and easy to stream in real time.
+
+- Tags use a Tag + LeadTag junction pattern instead of a JSONB array
+  because tags need to be filterable, countable, and renameable efficiently.
+
+- Attachment references S3 object keys, not binary data. We never store
+  files in PostgreSQL — that would destroy I/O performance at scale.
+"""
+
+import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlalchemy import (
+    Boolean, DateTime, Float, ForeignKey, Index, Integer,
+    String, Text, UniqueConstraint, func,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, BaseModel
+from app.models.enums import ActivityTypeEnum, CompanySizeEnum, LeadStatusEnum
+
+if TYPE_CHECKING:
+    from app.models.identity.models import User, Organization
+    from app.models.campaigns.models import CampaignLead
+    from app.models.communication.models import Email, Meeting
+    from app.models.ai.models import AIJob, AIOutput
+
+
+# ─── Association Tables ───────────────────────────────────────────────────────
+
+class LeadTag(Base):
+    """M:M between Lead and Tag."""
+    __tablename__ = "lead_tags"
+    __table_args__ = (
+        Index("ix_lead_tags_lead", "lead_id"),
+        Index("ix_lead_tags_tag", "tag_id"),
+    )
+
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
+    )
+    tagged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    tagged_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+# ─── Core Tables ─────────────────────────────────────────────────────────────
+
+class Company(BaseModel):
+    """
+    Represents a real-world business entity.
+
+    company_research is stored in CompanyResearch (AI domain) to keep AI artifacts
+    separate from CRM facts. This table stores what we *know* about the company
+    from the user's input; CompanyResearch stores what the AI *discovered*.
+
+    Why not store research here?
+    Because AI research can be re-run, has versioning, and contains embeddings.
+    Mixing that with CRM data creates a wide table that's hard to maintain.
+    """
+    __tablename__ = "companies"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    website: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    domain: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, index=True,
+        comment="Normalized domain (no www) for deduplication"
+    )
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    sub_industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    employee_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    size_range: Mapped[Optional[CompanySizeEnum]] = mapped_column(String(20), nullable=True)
+    annual_revenue: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    technologies: Mapped[Optional[list]] = mapped_column(
+        ARRAY(String), nullable=True,
+        comment="Tech stack inferred from research (e.g. ['Salesforce', 'AWS'])"
+    )
+    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
+
+    # Relationships
+    contacts: Mapped[List["Contact"]] = relationship(
+        "Contact", back_populates="company", cascade="all, delete-orphan"
+    )
+    leads: Mapped[List["Lead"]] = relationship(
+        "Lead", back_populates="company"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "domain", name="uq_company_org_domain"),
+        Index("ix_companies_org_name", "organization_id", "name"),
+    )
+
+
+class Contact(BaseModel):
+    """
+    A person at a Company. A Contact becomes a Lead when there is a sales
+    opportunity — the Contact record persists beyond any single campaign.
+
+    Design rationale: Separating Contact from Lead allows the same person
+    to appear in multiple campaigns without data duplication.
+    """
+    __tablename__ = "contacts"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    email_valid: Mapped[Optional[bool]] = mapped_column(
+        Boolean, nullable=True,
+        comment="Result of email validation check (None = not yet checked)"
+    )
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    job_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    twitter_handle: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    timezone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    is_decision_maker: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
+
+    # Relationships
+    company: Mapped[Optional["Company"]] = relationship("Company", back_populates="contacts")
+    leads: Mapped[List["Lead"]] = relationship("Lead", back_populates="contact")
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "email", name="uq_contact_org_email"),
+        Index("ix_contacts_org_company", "organization_id", "company_id"),
+    )
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+class Lead(BaseModel):
+    """
+    A sales opportunity. Links a Contact to a Company within a sales pipeline.
+
+    Why does Lead reference both Contact and Company separately?
+    Because a Contact might not always have a Company (indie freelancers),
+    and a Company might exist before we identify the right Contact.
+    Both FKs are nullable to support partial data imports.
+
+    owner_id: The sales rep responsible for this lead.
+    source: How the lead was acquired (CSV import, manual, API, etc.).
+    status: Global pipeline stage (different from CampaignLead.status which
+            is campaign-specific progress).
+    """
+    __tablename__ = "leads"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    contact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
+
+    # Core fields
+    status: Mapped[LeadStatusEnum] = mapped_column(
+        String(30), default=LeadStatusEnum.NEW, nullable=False, index=True
+    )
+    source: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True,
+        comment="Import source: csv, manual, api, linkedin, etc."
+    )
+    priority: Mapped[int] = mapped_column(
+        Integer, default=0,
+        comment="0-100 priority score; higher = more important"
+    )
+
+    # Denormalized convenience fields (synced from Contact/Company at import time)
+    # These avoid joins on the hot path (list view, export, sequence builder).
+    # They are refreshed whenever the linked Contact or Company is updated.
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    job_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # AI-generated fields
+    icp_match_score: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+        comment="Ideal Customer Profile match score (0.0-1.0)"
+    )
+    buying_intent_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    custom_fields: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True,
+        comment="Organization-defined custom fields (dynamic schema)"
+    )
+    notes_text: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True,
+        comment="Quick inline note; structured notes go to the Note table"
+    )
+
+    # Timestamps
+    contacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    replied_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    converted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    contact: Mapped[Optional["Contact"]] = relationship("Contact", back_populates="leads")
+    company: Mapped[Optional["Company"]] = relationship("Company", back_populates="leads")
+    owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[owner_id])
+    tags: Mapped[List["Tag"]] = relationship("Tag", secondary="lead_tags", back_populates="leads")
+    notes: Mapped[List["Note"]] = relationship(
+        "Note", back_populates="lead", cascade="all, delete-orphan"
+    )
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", back_populates="lead", cascade="all, delete-orphan"
+    )
+    scores: Mapped[List["LeadScore"]] = relationship(
+        "LeadScore", back_populates="lead", cascade="all, delete-orphan",
+        order_by="LeadScore.scored_at.desc()"
+    )
+    campaign_leads: Mapped[List["CampaignLead"]] = relationship(
+        "CampaignLead", back_populates="lead"
+    )
+    emails: Mapped[List["Email"]] = relationship("Email", back_populates="lead")
+    meetings: Mapped[List["Meeting"]] = relationship("Meeting", back_populates="lead")
+    attachments: Mapped[List["Attachment"]] = relationship(
+        "Attachment", back_populates="lead", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_leads_org_status", "organization_id", "status"),
+        Index("ix_leads_org_owner", "organization_id", "owner_id"),
+        Index("ix_leads_created_at", "created_at"),
+    )
+
+
+class LeadScore(BaseModel):
+    """
+    Historical AI-generated scores for a lead.
+    We never update scores — we insert new rows. This gives a scoring history
+    useful for training future models and understanding score drift.
+    """
+    __tablename__ = "lead_scores"
+
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    ai_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_jobs.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    overall_score: Mapped[float] = mapped_column(Float, nullable=False)
+    icp_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    buying_intent_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    urgency_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fit_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    factors: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    scored_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    model_version: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Relationships
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="scores")
+
+    __table_args__ = (
+        Index("ix_lead_scores_lead_scored", "lead_id", "scored_at"),
+    )
+
+
+class Tag(BaseModel):
+    """
+    Organizational tags for leads. Tags are scoped to an organization.
+    Using a proper Tag table (vs JSONB array) enables:
+    - Fast filtering: WHERE EXISTS (SELECT 1 FROM lead_tags lt JOIN tags t ON ...)
+    - Tag rename without touching every lead row
+    - Tag analytics (most common tags, etc.)
+    """
+    __tablename__ = "tags"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    color: Mapped[Optional[str]] = mapped_column(
+        String(7), nullable=True,
+        comment="Hex color code e.g. #FF5733"
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    leads: Mapped[List["Lead"]] = relationship(
+        "Lead", secondary="lead_tags", back_populates="tags"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uq_tag_org_name"),
+    )
+
+
+class Note(BaseModel):
+    """
+    Structured notes on a Lead. Supports rich text (HTML stored as text).
+    Notes are append-friendly but can be edited (updated_at tracks changes).
+    """
+    __tablename__ = "notes"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    author_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Relationships
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="notes")
+    author: Mapped[Optional["User"]] = relationship("User", foreign_keys=[author_id])
+
+
+class Activity(BaseModel):
+    """
+    Append-only timeline of events for a Lead.
+
+    Why append-only? Because updating a single status field destroys history.
+    With append-only events we can reconstruct the full timeline, compute
+    time-to-open, time-to-reply, and feed data into analytics/ML pipelines.
+
+    entity_type / entity_id allow linking to any related object (Email, Meeting, etc.)
+    without a FK to every possible table.
+    """
+    __tablename__ = "activities"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="NULL for system/AI-generated activities"
+    )
+    activity_type: Mapped[ActivityTypeEnum] = mapped_column(
+        String(50), nullable=False, index=True
+    )
+    summary: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    entity_type: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True,
+        comment="Polymorphic reference: 'email', 'meeting', 'note', etc."
+    )
+    entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True,
+        comment="ID of the referenced entity (no FK — polymorphic)"
+    )
+    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="activities")
+    actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])
+
+    __table_args__ = (
+        Index("ix_activities_org_lead", "organization_id", "lead_id"),
+        Index("ix_activities_type_occurred", "activity_type", "occurred_at"),
+        Index("ix_activities_entity", "entity_type", "entity_id"),
+    )
+
+
+class Attachment(BaseModel):
+    """
+    File attachments for leads (call recordings, proposals, etc.).
+    Files are stored in S3; this table stores the metadata.
+    """
+    __tablename__ = "attachments"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    uploaded_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_key: Mapped[str] = mapped_column(
+        String(1024), nullable=False,
+        comment="S3 object key"
+    )
+    file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Relationships
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="attachments")
