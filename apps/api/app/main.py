@@ -7,37 +7,19 @@ from app.core.config import get_settings
 from app.database.base import Base
 from app.database.session import engine
 from app.exceptions.handlers import register_exception_handlers
-import app.models.entities  # noqa: F401 - register mapped tables
-import app.models.role  # noqa: F401
-import app.models.session  # noqa: F401
 
 settings = get_settings()
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    # Local development is self-starting. Production must apply Alembic migrations
-    # before application instances are started.
-    if settings.environment == "development":
-        async with engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
-    yield
-    await engine.dispose()
-
-
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     docs_url="/docs" if settings.environment != "production" else None,
-    lifespan=lifespan,
 )
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[str(origin) for origin in settings.cors_origins],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
 
