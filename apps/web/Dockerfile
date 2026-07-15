@@ -7,4 +7,4 @@ COPY . .
 WORKDIR /app/apps/web
 RUN npm run build
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", ".next/standalone/server.js"]

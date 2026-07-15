@@ -8,6 +8,8 @@ Production-minded Phase 1 foundation for a multi-tenant AI SDR SaaS. This reposi
 2. Run `docker compose up --build`.
 3. Open `http://localhost:3000`; API health is at `http://localhost:8000/api/v1/health/live`.
 
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
 ## Repository layout
 
 ```
@@ -32,3 +34,8 @@ The API is versioned under `/api/v1`, returns a consistent `success/data/message
 - Add migrations through Alembic before shipping model changes.
 
 See [architecture notes](docs/architecture.md) and [contributing guide](docs/contributing.md).
+
+
+## Running locally
+
+Follow the [local development guide](docs/local-development.md) for Docker, non-Docker, database reset, and the full authentication flow. The planned delivery sequence is in the [roadmap](docs/roadmap.md).
