@@ -1,0 +1,143 @@
+/**
+ * Centralized icon exports.
+ *
+ * Components and application pages import icons from `@/icons`, never
+ * directly from `lucide-react`. This keeps the icon set curated (one place
+ * to see everything in use), makes a future icon-library swap a one-file
+ * change, and lets us export a consistent `IconComponent` type for props
+ * like `icon?: IconComponent`.
+ */
+import type { LucideIcon, LucideProps } from "lucide-react";
+
+export type IconComponent = LucideIcon;
+export type { LucideProps };
+
+export {
+  // Navigation & chrome
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowUpDown,
+  Menu,
+  MoreHorizontal,
+  MoreVertical,
+  PanelLeft,
+  PanelLeftClose,
+  ExternalLink,
+  Home,
+  LayoutDashboard,
+  LayoutGrid,
+
+  // Actions
+  Plus,
+  Minus,
+  X,
+  Check,
+  CheckCheck,
+  Search,
+  Filter,
+  SlidersHorizontal,
+  Settings,
+  Settings2,
+  Pencil,
+  Trash2,
+  Copy,
+  Download,
+  Upload,
+  UploadCloud,
+  RefreshCw,
+  RotateCcw,
+  LogOut,
+  LogIn,
+  Send,
+  Save,
+  Share2,
+  Link2,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  KeyRound,
+  ShieldCheck,
+  ShieldAlert,
+
+  // Status & feedback
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  XCircle,
+  Loader2,
+  CircleDot,
+  Circle,
+  Dot,
+
+  // People & org
+  User,
+  UserPlus,
+  UserMinus,
+  Users,
+  Building2,
+  Mail,
+  Phone,
+  MessageSquare,
+  MessagesSquare,
+  Bell,
+  BellOff,
+
+  // Business/data
+  BarChart3,
+  LineChart,
+  PieChart,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Sparkles,
+  Bot,
+  Zap,
+  Wallet,
+  CreditCard,
+  Receipt,
+  Briefcase,
+  Calendar,
+  CalendarDays,
+  Clock,
+  Clock3,
+  Star,
+  Flag,
+  Tag,
+  Tags,
+  Folder,
+  FolderOpen,
+  File,
+  FileText,
+  FileSpreadsheet,
+  Paperclip,
+  Image as ImageIcon,
+  Inbox,
+  Archive,
+
+  // Misc UI
+  Command,
+  CornerDownLeft,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  Moon,
+  Sun,
+  Monitor,
+  Globe,
+  MapPin,
+  Building,
+  ChevronsUpDown,
+  ListFilter,
+  LayoutList,
+  Columns3,
+  Rows3,
+} from "lucide-react";
