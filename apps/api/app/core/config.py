@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: Literal["development", "staging", "production"] = "development"
+
     app_name: str = "SalesPilot API"
     api_v1_prefix: str = "/api/v1"
 
@@ -57,8 +58,11 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_origins(cls, value: object) -> object:
-        return value.split(",") if isinstance(value, str) else value
+    def parse_origins(cls, value):
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",")]
+        return value
+
 
 
 @lru_cache
