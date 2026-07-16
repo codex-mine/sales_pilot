@@ -1,31 +1,64 @@
+"use client";
+
+import { LayoutDashboard, MailWarning } from "@/icons";
+import { AuthGuard } from "@/components/guards";
 import { AppShell } from "@/components/layouts/app-shell";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/shared/empty-state";
-const cards = ["Pipeline", "Engagement", "Team activity"];
+import { PageLayout } from "@/components/layout/page-layout";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
+import { authService } from "@/features/auth/services/auth.service";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+function DashboardContent(): React.ReactElement {
+  const user = useCurrentUser();
+
+  const resendMutation = useMutation({
+    mutationFn: () => authService.resendVerification(),
+    onSuccess: () => toast.success("Verification email sent."),
+  });
+
+  return (
+    <PageLayout>
+      <PageHeader
+        title={user ? `Welcome back, ${user.first_name}` : "Dashboard"}
+        description="Here's what's happening in your workspace."
+      />
+
+      {user && !user.email_verified && (
+        <Alert variant="warning" icon={MailWarning} className="mb-6">
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>Verify your email address to unlock all features.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => resendMutation.mutate()}
+              isLoading={resendMutation.isPending}
+            >
+              Resend email
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <EmptyState
+        icon={LayoutDashboard}
+        title="Your dashboard is ready"
+        description="Campaigns, leads, and AI insights will appear here as those features come online."
+      />
+    </PageLayout>
+  );
+}
+
 export default function DashboardPage(): React.ReactElement {
   return (
-    <AppShell>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Your workspace will come to life as you connect future sales
-          workflows.
-        </p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {cards.map((title) => (
-          <Card key={title}>
-            <p className="text-sm text-slate-500">{title}</p>
-            <p className="mt-4 text-3xl font-semibold">—</p>
-          </Card>
-        ))}
-      </div>
-      <div className="mt-6">
-        <EmptyState
-          title="Your dashboard is ready"
-          description="Campaigns, insights, and AI workflows will appear here when those features are introduced."
-        />
-      </div>
-    </AppShell>
+    <AuthGuard>
+      <AppShell>
+        <DashboardContent />
+      </AppShell>
+    </AuthGuard>
   );
 }

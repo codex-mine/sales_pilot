@@ -20,10 +20,12 @@ from app.models.enums import AuditActionEnum, UserStatusEnum
 from app.models.identity.models import OrganizationInvitation, User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.invitation_repository import InvitationRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.security.passwords import hash_password, validate_password_strength
 from app.security.tokens import create_opaque_token, hash_token
+from app.services.email_service import send_invitation_email
 
 
 class InvitationService:
@@ -32,6 +34,7 @@ class InvitationService:
         self.invitations = InvitationRepository(db)
         self.roles = RoleRepository(db)
         self.users = UserRepository(db)
+        self.organizations = OrganizationRepository(db)
         self.audit_log = AuditLogRepository(db)
 
     async def invite(
@@ -65,6 +68,13 @@ class InvitationService:
         )
         await self.db.commit()
         await self.db.refresh(invitation)
+
+        organization = await self.organizations.get_by_id(organization_id)
+        await send_invitation_email(
+            to=email,
+            organization_name=organization.name if organization else "your organization",
+            token=raw_token,
+        )
         return invitation, raw_token
 
     async def accept(

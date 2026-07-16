@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,7 +32,12 @@ class Settings(BaseSettings):
     access_token_cookie_name: str = "access_token"
     refresh_token_cookie_name: str = "refresh_token"
     csrf_cookie_name: str = "csrf_token"
-    cors_origins: list[AnyHttpUrl] | str = []
+    # Plain strings, not AnyHttpUrl: CORSMiddleware matches a request's
+    # `Origin` header (which never has a trailing slash or path) against
+    # this list with an exact string comparison. AnyHttpUrl normalizes
+    # "http://localhost:3000" to "http://localhost:3000/" when stringified,
+    # which then silently fails to match every real browser Origin header.
+    cors_origins: list[str] | str = []
     secure_cookies: bool = False
 
     # ─── Password policy ──────────────────────────────────────────────────────
@@ -56,12 +61,27 @@ class Settings(BaseSettings):
     session_remember_me_expire_days: int = 30
     max_active_sessions_per_user: int = 10
 
+    # ─── Frontend / email ──────────────────────────────────────────────────────
+    # Used to build links in transactional emails (verify-email, reset-password).
+    frontend_url: str = "http://localhost:3000"
+
+    # SMTP is optional: when smtp_host is unset, EmailService logs and no-ops
+    # instead of sending, so registration/reset flows keep working in local
+    # dev without real mail credentials configured.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    smtp_from_email: str = "no-reply@salespilot.app"
+    smtp_from_name: str = "SalesPilot"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value):
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",")]
-        return value
+            value = [origin.strip() for origin in value.split(",")]
+        return [origin.rstrip("/") for origin in value]
 
 
 

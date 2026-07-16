@@ -10,14 +10,36 @@ from app.database.session import get_db
 from app.exceptions.errors import NotFoundError
 from app.models.identity.models import User
 from app.repositories.invitation_repository import InvitationRepository
-from app.schemas.auth import AcceptInvitationRequest, InvitationResponse, InviteUserRequest, UserResponse
+from app.repositories.role_repository import RoleRepository
+from app.schemas.auth import (
+    AcceptInvitationRequest,
+    InvitationResponse,
+    InviteUserRequest,
+    RoleResponse,
+    UserResponse,
+)
 from app.schemas.common import ApiResponse
-from app.schemas.serializers import serialize_invitation, serialize_user
+from app.schemas.serializers import serialize_invitation, serialize_role, serialize_user
 from app.security.device import build_device_info, get_client_ip
 from app.services.invitation_service import InvitationService
 from app.services.session_service import SessionService
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
+
+
+@router.get("/roles", response_model=ApiResponse[list[RoleResponse]])
+async def list_roles(
+    user: User = Depends(require_permission("users", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[RoleResponse]]:
+    """
+    Lists the current organization's roles (id, name, description, is_system).
+    Read-only — exists so clients can populate a role picker (e.g. the invite-
+    member form) without guessing role UUIDs, which are generated per-org at
+    creation time and are otherwise unknowable from the outside.
+    """
+    roles = await RoleRepository(db).list_for_organization(user.organization_id)
+    return ApiResponse(data=[serialize_role(role) for role in roles])
 
 
 @router.post(
