@@ -41,6 +41,7 @@ from app.security.rate_limit import (
     record_failed_login,
 )
 from app.security.tokens import create_opaque_token, hash_token
+from app.services.email_service import send_password_reset_email, send_verification_email
 from app.services.organization_service import OrganizationService
 from app.services.session_service import SessionService
 
@@ -114,6 +115,7 @@ class AuthService:
         )
         await self.db.commit()
         await self.db.refresh(user)
+        await send_verification_email(to=user.email, first_name=user.first_name, token=raw_token)
         return user, raw_token
 
     # ─── Login ──────────────────────────────────────────────────────────────────
@@ -233,6 +235,7 @@ class AuthService:
             resource_id=user.id,
         )
         await self.db.commit()
+        await send_password_reset_email(to=user.email, first_name=user.first_name, token=raw_token)
         return raw_token
 
     async def reset_password(self, raw_token: str, new_password: str) -> User:
@@ -297,6 +300,7 @@ class AuthService:
             resource_id=user.id,
         )
         await self.db.commit()
+        await send_verification_email(to=user.email, first_name=user.first_name, token=raw_token)
         return raw_token
 
     async def verify_email(self, raw_token: str) -> User:

@@ -4,10 +4,11 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.identity.models import Organization, OrganizationInvitation, Session, User
+from app.models.identity.models import Organization, OrganizationInvitation, Role, Session, User
 from app.schemas.auth import (
     InvitationResponse,
     OrganizationResponse,
+    RoleResponse,
     SessionResponse,
     UserResponse,
 )
@@ -65,4 +66,13 @@ def serialize_invitation(invitation: OrganizationInvitation) -> InvitationRespon
         status=invitation.status,
         expires_at=invitation.expires_at,
         created_at=invitation.created_at,
+    )
+
+
+def serialize_role(role: Role) -> RoleResponse:
+    return RoleResponse(
+        id=str(role.id),
+        name=role.name,
+        description=role.description,
+        is_system=role.is_system,
     )

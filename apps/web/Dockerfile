@@ -6,5 +6,6 @@ RUN npm install
 COPY . .
 WORKDIR /app/apps/web
 RUN npm run build
+RUN cp -r .next/static .next/standalone/apps/web/.next/static
 EXPOSE 3000
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", ".next/standalone/apps/web/server.js"]
