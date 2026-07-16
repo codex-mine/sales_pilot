@@ -1,0 +1,663 @@
+You are a Senior Full Stack Engineer.
+
+Your task is to integrate the existing Next.js frontend with an already completed FastAPI backend.
+
+The backend is COMPLETE.
+
+Do NOT modify backend APIs.
+
+Do NOT invent endpoints.
+
+Do NOT redesign the authentication flow.
+
+The frontend UI is already finished.
+
+Only implement frontend integration.
+
+Everything must be production-ready.
+
+----------------------------------------------------
+TECH STACK
+----------------------------------------------------
+
+Frontend
+
+- Next.js 15 App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- TanStack Query
+- Axios
+- React Hook Form
+- Zod
+- Zustand
+- Framer Motion
+
+Backend
+
+FastAPI
+
+JWT Authentication
+
+RBAC
+
+Multi Tenant
+
+----------------------------------------------------
+IMPORTANT
+----------------------------------------------------
+
+Use ONLY the API endpoints listed below.
+
+Never create fake endpoints.
+
+Never change endpoint names.
+
+Never change backend contracts.
+
+If a frontend flow needs backend data, use the existing endpoint.
+
+----------------------------------------------------
+AUTH ENDPOINTS
+----------------------------------------------------
+
+POST /api/v1/auth/register
+
+POST /api/v1/auth/login
+
+POST /api/v1/auth/refresh
+
+POST /api/v1/auth/logout
+
+POST /api/v1/auth/logout-all
+
+GET /api/v1/auth/me
+
+POST /api/v1/auth/change-password
+
+POST /api/v1/auth/forgot-password
+
+POST /api/v1/auth/reset-password
+
+POST /api/v1/auth/verify-email
+
+POST /api/v1/auth/resend-verification
+
+GET /api/v1/auth/sessions
+
+DELETE /api/v1/auth/sessions/{session_id}
+
+----------------------------------------------------
+ORGANIZATION ENDPOINTS
+----------------------------------------------------
+
+GET /api/v1/organizations/invitations
+
+POST /api/v1/organizations/invitations
+
+DELETE /api/v1/organizations/invitations/{invitation_id}
+
+POST /api/v1/organizations/invitations/accept
+
+----------------------------------------------------
+YOUR TASK
+----------------------------------------------------
+
+Implement complete frontend authentication.
+
+Everything must work end-to-end.
+
+No TODOs.
+
+No placeholders.
+
+----------------------------------------------------
+STEP 1
+
+API CLIENT
+----------------------------------------------------
+
+Create one reusable Axios instance.
+
+Support
+
+Authorization header
+
+JWT access token
+
+Refresh token flow
+
+401 interceptor
+
+403 interceptor
+
+Network errors
+
+Automatic retry after refresh
+
+Request cancellation
+
+Global error formatting
+
+Typed responses
+
+----------------------------------------------------
+STEP 2
+
+AUTH SERVICES
+----------------------------------------------------
+
+Create auth service methods.
+
+register()
+
+login()
+
+logout()
+
+logoutAll()
+
+refresh()
+
+me()
+
+forgotPassword()
+
+resetPassword()
+
+changePassword()
+
+verifyEmail()
+
+resendVerification()
+
+getSessions()
+
+revokeSession()
+
+Everything must be fully typed.
+
+----------------------------------------------------
+STEP 3
+
+ORGANIZATION SERVICES
+----------------------------------------------------
+
+Create
+
+getInvitations()
+
+inviteUser()
+
+acceptInvitation()
+
+revokeInvitation()
+
+Typed responses.
+
+----------------------------------------------------
+STEP 4
+
+AUTH STORE
+----------------------------------------------------
+
+Create Zustand auth store.
+
+Store
+
+Current User
+
+Current Organization
+
+Current Workspace
+
+Permissions
+
+Roles
+
+Authentication Status
+
+Access Token
+
+Refresh Status
+
+Loading
+
+Error
+
+Session
+
+Selected Organization
+
+Support
+
+login()
+
+logout()
+
+refresh()
+
+initialize()
+
+loadUser()
+
+clear()
+
+----------------------------------------------------
+STEP 5
+
+AUTH INITIALIZATION
+----------------------------------------------------
+
+When application starts
+
+↓
+
+Check token
+
+↓
+
+Refresh token
+
+↓
+
+Load current user
+
+↓
+
+Load permissions
+
+↓
+
+Load organization
+
+↓
+
+Load workspace
+
+↓
+
+Store everything
+
+↓
+
+Render app
+
+Never render dashboard before authentication initialization finishes.
+
+----------------------------------------------------
+STEP 6
+
+FORMS
+----------------------------------------------------
+
+Integrate
+
+Login
+
+Register
+
+Create Organization
+
+Forgot Password
+
+Reset Password
+
+Verify Email
+
+Resend Verification
+
+Change Password
+
+Everything uses
+
+React Hook Form
+
+Zod
+
+TanStack Mutation
+
+Toast Notifications
+
+Loading States
+
+Disabled Buttons
+
+Field Errors
+
+Server Errors
+
+----------------------------------------------------
+STEP 7
+
+SESSION MANAGEMENT
+----------------------------------------------------
+
+Use
+
+GET /auth/sessions
+
+Display
+
+Current Session
+
+Browser
+
+Device
+
+IP
+
+Last Active
+
+Allow
+
+Logout Current Session
+
+Logout All Sessions
+
+----------------------------------------------------
+STEP 8
+
+EMAIL VERIFICATION
+----------------------------------------------------
+
+Implement
+
+Verification Page
+
+Success Page
+
+Expired Link
+
+Invalid Link
+
+Resend Email
+
+Countdown Timer
+
+Redirect Login
+
+There is issue SMTP have to be set in the backend so implement this as well
+
+----------------------------------------------------
+STEP 9
+
+FORGOT PASSWORD
+----------------------------------------------------
+
+Forgot Password Form
+
+Success Screen
+
+Reset Password Form
+
+Password Validation
+
+Success Redirect
+
+Expired Token Screen
+
+----------------------------------------------------
+STEP 10
+
+ROUTE GUARDS
+----------------------------------------------------
+
+Create
+
+<AuthGuard>
+
+<GuestGuard>
+
+<RoleGuard>
+
+<PermissionGuard>
+
+<VerifiedEmailGuard>
+
+Protect
+
+Dashboard
+
+Settings
+
+Organization
+
+Campaigns
+
+AI Pages
+
+----------------------------------------------------
+STEP 11
+
+HOOKS
+----------------------------------------------------
+
+Create reusable hooks.
+
+useAuth()
+
+useCurrentUser()
+
+usePermissions()
+
+useRole()
+
+useSession()
+
+useOrganization()
+
+useInvitations()
+
+----------------------------------------------------
+STEP 12
+
+ORGANIZATION INVITATIONS
+----------------------------------------------------
+
+Implement
+
+Invitation List
+
+Invite Member
+
+Accept Invitation
+
+Revoke Invitation
+
+Loading
+
+Errors
+
+Success
+
+Empty States
+
+----------------------------------------------------
+STEP 13
+
+TOKEN MANAGEMENT
+----------------------------------------------------
+
+Automatically
+
+Refresh access token
+
+Retry failed request
+
+Logout when refresh fails
+
+Prevent infinite refresh loops
+
+Handle expired sessions
+
+----------------------------------------------------
+STEP 14
+
+ERROR HANDLING
+----------------------------------------------------
+
+Handle
+
+400
+
+401
+
+403
+
+404
+
+409
+
+422
+
+429
+
+500
+
+Network Offline
+
+Display beautiful user-friendly messages.
+
+----------------------------------------------------
+STEP 15
+
+USER EXPERIENCE
+----------------------------------------------------
+
+Every request supports
+
+Loading
+
+Skeleton
+
+Spinner
+
+Retry
+
+Toast
+
+Error Card
+
+Success Toast
+
+Disabled Buttons
+
+Optimistic UX where appropriate
+
+----------------------------------------------------
+STEP 16
+
+CODE STRUCTURE
+----------------------------------------------------
+
+Organize code using feature architecture.
+
+features/auth
+
+components/auth
+
+services/auth
+
+hooks/auth
+
+store/auth
+
+types/auth
+
+schemas/auth
+
+utils/auth
+
+lib/api
+
+lib/auth
+
+middleware
+
+Everything should be reusable.
+
+----------------------------------------------------
+STEP 17
+
+TYPE SAFETY
+----------------------------------------------------
+
+Never use "any".
+
+Infer response types.
+
+Strong typing.
+
+Centralized interfaces.
+
+Reusable DTOs.
+
+----------------------------------------------------
+STEP 18
+
+FINAL FLOW
+----------------------------------------------------
+
+The application should support:
+
+User Registration
+
+↓
+
+Email Verification
+
+↓
+
+Create Workspace
+
+↓
+
+Login
+
+↓
+
+Store Tokens
+
+↓
+
+Fetch Current User
+
+↓
+
+Load Organization
+
+↓
+
+Initialize Permissions
+
+↓
+
+Redirect Dashboard
+
+↓
+
+Maintain Session
+
+↓
+
+Auto Refresh Token
+
+↓
+
+Manage Sessions
+
+↓
+
+Logout
+
+↓
+
+Redirect Login
+
+Everything should behave like a production SaaS such as Linear, Clerk, Stripe, or Attio.
+
+Do NOT redesign the project.
+
+Only integrate the frontend with the existing backend APIs.
