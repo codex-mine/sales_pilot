@@ -354,8 +354,8 @@ async def update_note(
 ) -> ApiResponse[NoteResponse]:
     await LeadService(db).require_lead(lead_id, user.organization_id)
     note = await NoteService(db).update(
-        lead_id,
-        note_id,
+        note_id=note_id,
+        lead_id=lead_id,
         content=payload.content,
         is_pinned=payload.is_pinned,
         actor=user,
@@ -371,7 +371,7 @@ async def delete_note(
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[None]:
     await LeadService(db).require_lead(lead_id, user.organization_id)
-    await NoteService(db).delete(lead_id, note_id, actor=user)
+    await NoteService(db).delete(note_id=note_id, lead_id=lead_id, actor=user)
     return ApiResponse(message="Note deleted.")
 
 
@@ -442,5 +442,5 @@ async def delete_attachment(
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[None]:
     await LeadService(db).require_lead(lead_id, user.organization_id)
-    await AttachmentService(db).delete(lead_id, attachment_id, actor=user)
+    await AttachmentService(db).delete(attachment_id=attachment_id, lead_id=lead_id, actor=user)
     return ApiResponse(message="Attachment deleted.")

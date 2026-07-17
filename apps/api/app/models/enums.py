@@ -119,6 +119,14 @@ class ActivityTypeEnum(str, enum.Enum):
     LEAD_ARCHIVED = "lead_archived"
     LEAD_RESTORED = "lead_restored"
     BULK_ACTION = "bulk_action"
+    # Company module (CRM > Companies)
+    COMPANY_CREATED = "company_created"
+    COMPANY_UPDATED = "company_updated"
+    COMPANY_ARCHIVED = "company_archived"
+    COMPANY_RESTORED = "company_restored"
+    COMPANY_DELETED = "company_deleted"
+    LEAD_LINKED = "lead_linked"
+    CONTACT_LINKED = "contact_linked"
 
 
 class CompanySizeEnum(str, enum.Enum):
@@ -129,6 +137,15 @@ class CompanySizeEnum(str, enum.Enum):
     LARGE = "201-1000"
     ENTERPRISE = "1001-5000"
     CORPORATION = "5000+"
+
+
+class CompanyStatusEnum(str, enum.Enum):
+    PROSPECT = "prospect"
+    ACTIVE = "active"
+    CUSTOMER = "customer"
+    PARTNER = "partner"
+    CHURNED = "churned"
+    INACTIVE = "inactive"
 
 
 # ─── Campaigns ───────────────────────────────────────────────────────────────

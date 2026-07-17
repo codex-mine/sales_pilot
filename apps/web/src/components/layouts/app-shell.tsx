@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
+  Briefcase,
   Building2,
   LayoutDashboard,
   LogOut,
@@ -45,6 +46,7 @@ import { getInitials } from "@/lib/utils";
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
+  { href: "/companies", label: "Companies", icon: Briefcase },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/settings/organization", label: "Organization", icon: Building2 },
 ];
@@ -58,10 +60,11 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           href={href}
           label={label}
           icon={icon}
-          // "Leads" has sub-routes (/leads/[id], /leads/import) without their
-          // own nav entries, so it needs prefix matching to stay highlighted
-          // there; every other item maps 1:1 to a literal href.
-          isActive={href === "/leads" ? pathname.startsWith(href) : pathname === href}
+          // "Leads" and "Companies" have sub-routes (/leads/[id], /leads/import,
+          // /companies/[id]) without their own nav entries, so they need prefix
+          // matching to stay highlighted there; every other item maps 1:1 to a
+          // literal href.
+          isActive={href === "/leads" || href === "/companies" ? pathname.startsWith(href) : pathname === href}
           onClick={onNavigate}
         />
       ))}

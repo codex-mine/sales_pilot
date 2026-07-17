@@ -1,0 +1,317 @@
+Continue from the existing project.
+
+Do not redesign the architecture.
+
+Reuse all existing backend architecture, frontend architecture, authentication, RBAC, organization module, lead module, reusable UI components, layouts, API services, hooks, stores, repositories, and coding conventions.
+
+This is the next CRM module.
+
+=========================================================
+MODULE
+=========================================================
+
+CRM → Companies
+
+The Company module represents businesses or organizations that your sales team is targeting or already working with.
+
+Every company belongs to an Organization (Workspace).
+
+A company can have multiple contacts, multiple leads, multiple activities, multiple notes, multiple attachments, and later multiple deals.
+
+This module must be designed to scale like HubSpot, Salesforce, Attio, or Pipedrive.
+
+=========================================================
+FEATURES
+=========================================================
+
+Implement the complete Company module.
+
+✓ Company CRUD
+
+✓ Company Profile
+
+✓ Company Logo
+
+✓ Company Website
+
+✓ Industry
+
+✓ Company Size
+
+✓ Employees List
+
+✓ Recent Activity Timeline
+
+✓ Notes
+
+✓ Attachments
+
+✓ Tags
+
+✓ Ownership
+
+✓ Search
+
+✓ Advanced Filters
+
+✓ Pagination
+
+✓ Bulk Actions
+
+✓ CSV Export
+
+Everything must be production-ready.
+
+=========================================================
+COMPANY MODEL
+=========================================================
+
+Support:
+
+Company ID
+
+Organization ID
+
+Company Name
+
+Legal Name
+
+Logo
+
+Website
+
+Industry
+
+Description
+
+Phone
+
+Email
+
+Founded Year
+
+Company Size
+
+Annual Revenue
+
+Currency
+
+Country
+
+State
+
+City
+
+Address
+
+Postal Code
+
+LinkedIn URL
+
+Twitter URL
+
+Facebook URL
+
+Instagram URL
+
+Status
+
+Owner
+
+Tags
+
+Employee Count
+
+Contact Count
+
+Lead Count
+
+Created By
+
+Updated By
+
+Created At
+
+Updated At
+
+Archived At
+
+=========================================================
+EMPLOYEES
+=========================================================
+
+Display employees associated with this company.
+
+Each employee should display:
+
+Avatar
+
+Name
+
+Job Title
+
+Department
+
+Email
+
+Phone
+
+Status
+
+Role
+
+Last Activity
+
+Linked Contact
+
+Search
+
+Filter
+
+Pagination
+
+This module only displays employees.
+
+Employee management will be handled by the Contacts module later.
+
+=========================================================
+RECENT ACTIVITY
+=========================================================
+
+Automatically record:
+
+Company Created
+
+Company Updated
+
+Company Archived
+
+Lead Linked
+
+Contact Linked
+
+Note Added
+
+Attachment Uploaded
+
+Owner Changed
+
+Status Changed
+
+Display:
+
+Icon
+
+Action
+
+User
+
+Timestamp
+
+Relative Time
+
+=========================================================
+BACKEND
+=========================================================
+
+Implement:
+
+Models
+
+Schemas
+
+Repositories
+
+Services
+
+Controllers
+
+Routes
+
+Validation
+
+Permissions
+
+Audit Logs
+
+RESTful APIs
+
+=========================================================
+FRONTEND
+=========================================================
+
+Create:
+
+Company List
+
+Company Details
+
+Create Company
+
+Edit Company
+
+Company Profile
+
+Employees Tab
+
+Activity Timeline Tab
+
+Notes Tab
+
+Attachments Tab
+
+Settings Tab
+
+Use existing design system and reusable components.
+
+=========================================================
+UX
+=========================================================
+
+Support:
+
+Loading
+
+Skeletons
+
+Error States
+
+Success Toasts
+
+Confirmation Dialogs
+
+Optimistic Updates
+
+Responsive Design
+
+Dark Mode
+
+Accessibility
+
+=========================================================
+CODE QUALITY
+=========================================================
+
+Strict TypeScript
+
+Repository Pattern
+
+Feature-first Architecture
+
+Reusable Hooks
+
+Reusable API Layer
+
+No Duplicate Logic
+
+SOLID Principles
+
+=========================================================
+FINAL DELIVERABLE
+=========================================================
+
+Users should be able to create companies, manage company profiles, view linked employees, browse recent activity, maintain notes and attachments, search and filter companies, and perform bulk actions.
+
+The module should integrate seamlessly with Organizations, Authentication, RBAC, Multi-tenancy, and the Lead module without changing the existing architecture.
+
+The final experience should be comparable to HubSpot, Salesforce, Attio, or Pipedrive.

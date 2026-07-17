@@ -129,6 +129,8 @@ export {
   Pin,
   Linkedin,
   Twitter,
+  Facebook,
+  Instagram,
   History,
   UserCog,
 

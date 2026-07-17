@@ -22,6 +22,7 @@ RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     "organizations": ("read", "update", "delete", "manage"),
     "campaigns": ("create", "read", "update", "delete"),
     "leads": ("create", "read", "update", "delete", "import", "export", "bulk"),
+    "companies": ("create", "read", "update", "delete", "export", "bulk"),
     "notes": ("manage",),
     "attachments": ("manage",),
     "reports": ("read",),
@@ -65,7 +66,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         }
     ],
     RoleNameEnum.MANAGER: [
-        *_all("campaigns", "leads", "notes", "attachments"),
+        *_all("campaigns", "leads", "companies", "notes", "attachments"),
         ("reports", "read"),
         ("analytics", "read"),
         ("tasks", "manage"),
@@ -77,6 +78,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         ("leads", "create"),
         ("leads", "read"),
         ("leads", "update"),
+        ("companies", "create"),
+        ("companies", "read"),
+        ("companies", "update"),
         ("notes", "manage"),
         ("attachments", "manage"),
         ("campaigns", "read"),
@@ -86,6 +90,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
     ],
     RoleNameEnum.MEMBER: [
         ("leads", "read"),
+        ("companies", "read"),
         ("campaigns", "read"),
         ("reports", "read"),
         ("notifications", "manage"),
@@ -93,6 +98,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
     ],
     RoleNameEnum.VIEWER: [
         ("leads", "read"),
+        ("companies", "read"),
         ("campaigns", "read"),
         ("reports", "read"),
         ("analytics", "read"),
