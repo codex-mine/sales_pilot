@@ -1,0 +1,868 @@
+Continue from the existing project context.
+
+Do NOT redesign the project architecture.
+
+Do NOT change authentication.
+
+Do NOT change RBAC.
+
+Do NOT change the design system.
+
+Do NOT rewrite existing code.
+
+Reuse all existing components, layouts, stores, services, hooks, API utilities, permissions, middleware, and conventions.
+
+This is the next implementation phase of the AI Sales Agent SaaS.
+
+==========================================================
+MODULE
+==========================================================
+
+CRM → Lead Management
+
+This module will become the central place for managing prospects.
+
+Every lead belongs to an organization.
+
+Every action must respect multi-tenancy and RBAC.
+
+Everything must be production-ready.
+
+Implementation order is mandatory.
+
+1. Backend
+2. API
+3. Frontend
+4. Integration
+5. Testing
+
+==========================================================
+FEATURES
+==========================================================
+
+Implement completely:
+
+✓ Create Lead
+
+✓ View Lead
+
+✓ Update Lead
+
+✓ Delete Lead
+
+✓ Lead Details
+
+✓ Search
+
+✓ Advanced Filters
+
+✓ Sorting
+
+✓ Pagination
+
+✓ CSV Template
+
+✓ Import CSV
+
+✓ Export CSV
+
+✓ Bulk Actions
+
+✓ Lead Notes
+
+✓ File Attachments
+
+✓ Activity Timeline
+
+✓ Lead Status
+
+✓ Lead Source
+
+✓ Lead Tags
+
+✓ Assign Owner
+
+✓ Favorite Lead
+
+✓ Archive Lead
+
+Everything must work end-to-end.
+
+==========================================================
+LEAD MODEL
+==========================================================
+
+Support fields:
+
+Lead ID
+
+First Name
+
+Last Name
+
+Full Name
+
+Email
+
+Phone
+
+Job Title
+
+Company Name
+
+Website
+
+Industry
+
+Lead Source
+
+Lead Status
+
+Lead Score
+
+Priority
+
+Country
+
+City
+
+State
+
+Address
+
+LinkedIn URL
+
+Twitter URL
+
+Company Size
+
+Revenue
+
+Employee Count
+
+Owner
+
+Assigned User
+
+Organization ID
+
+Tags
+
+Description
+
+Notes Count
+
+Attachment Count
+
+Activities Count
+
+Favorite
+
+Archived
+
+Created By
+
+Updated By
+
+Created At
+
+Updated At
+
+==========================================================
+DEFAULT LEAD STATUS
+==========================================================
+
+New
+
+Contacted
+
+Qualified
+
+Interested
+
+Meeting Scheduled
+
+Proposal Sent
+
+Negotiation
+
+Won
+
+Lost
+
+Archived
+
+Status should be configurable.
+
+==========================================================
+LEAD SOURCE
+==========================================================
+
+Website
+
+Manual
+
+CSV Import
+
+Referral
+
+LinkedIn
+
+Apollo
+
+Google Maps
+
+Facebook
+
+Cold Email
+
+Advertisement
+
+API
+
+Custom
+
+==========================================================
+STEP 1
+BACKEND
+==========================================================
+
+Review the existing database.
+
+Reuse existing models whenever possible.
+
+Implement:
+
+Models
+
+Schemas
+
+Repositories
+
+Services
+
+Controllers
+
+Dependencies
+
+Validation
+
+Permissions
+
+Routes
+
+Everything follows existing architecture.
+
+==========================================================
+API ENDPOINTS
+==========================================================
+
+GET    /api/v1/leads
+
+POST   /api/v1/leads
+
+GET    /api/v1/leads/{lead_id}
+
+PATCH  /api/v1/leads/{lead_id}
+
+DELETE /api/v1/leads/{lead_id}
+
+POST   /api/v1/leads/import
+
+GET    /api/v1/leads/export
+
+POST   /api/v1/leads/bulk
+
+POST   /api/v1/leads/{lead_id}/notes
+
+PATCH  /api/v1/leads/{lead_id}/notes/{note_id}
+
+DELETE /api/v1/leads/{lead_id}/notes/{note_id}
+
+GET    /api/v1/leads/{lead_id}/activities
+
+POST   /api/v1/leads/{lead_id}/attachments
+
+DELETE /api/v1/leads/{lead_id}/attachments/{attachment_id}
+
+==========================================================
+SEARCH
+==========================================================
+
+Global search.
+
+Support:
+
+Name
+
+Email
+
+Phone
+
+Company
+
+Website
+
+Job Title
+
+Tags
+
+Notes
+
+Must be fast.
+
+==========================================================
+ADVANCED FILTERS
+==========================================================
+
+Status
+
+Owner
+
+Source
+
+Tags
+
+Created Date
+
+Updated Date
+
+Lead Score
+
+Priority
+
+Country
+
+Industry
+
+Company
+
+Favorite
+
+Archived
+
+Assigned User
+
+Multiple filters can be combined.
+
+==========================================================
+SORTING
+==========================================================
+
+Newest
+
+Oldest
+
+Name
+
+Company
+
+Lead Score
+
+Status
+
+Created Date
+
+Updated Date
+
+Owner
+
+==========================================================
+PAGINATION
+==========================================================
+
+Server-side pagination.
+
+Page
+
+Page Size
+
+Total Count
+
+Navigation
+
+==========================================================
+CSV IMPORT
+==========================================================
+
+Upload CSV.
+
+Preview Mapping.
+
+Auto Detect Columns.
+
+Manual Mapping.
+
+Validation Errors.
+
+Duplicate Detection.
+
+Import Summary.
+
+Failed Rows.
+
+Successful Rows.
+
+==========================================================
+CSV EXPORT
+==========================================================
+
+Export
+
+Selected Leads
+
+Filtered Leads
+
+Entire Organization
+
+CSV Download
+
+==========================================================
+BULK ACTIONS
+==========================================================
+
+Bulk Delete
+
+Bulk Archive
+
+Bulk Restore
+
+Bulk Assign Owner
+
+Bulk Change Status
+
+Bulk Add Tags
+
+Bulk Remove Tags
+
+Bulk Export
+
+Bulk Favorite
+
+Confirmation dialogs required.
+
+==========================================================
+NOTES
+==========================================================
+
+Each lead supports unlimited notes.
+
+Rich text textarea.
+
+Edit
+
+Delete
+
+Created By
+
+Timestamp
+
+Newest first
+
+==========================================================
+ATTACHMENTS
+==========================================================
+
+Upload
+
+PDF
+
+DOCX
+
+XLSX
+
+CSV
+
+Images
+
+ZIP
+
+Preview
+
+Download
+
+Delete
+
+Validation
+
+Progress
+
+==========================================================
+ACTIVITY TIMELINE
+==========================================================
+
+Automatically track:
+
+Lead Created
+
+Lead Updated
+
+Status Changed
+
+Owner Changed
+
+Note Added
+
+Attachment Uploaded
+
+CSV Imported
+
+CSV Updated
+
+Favorite
+
+Archive
+
+Restore
+
+Display:
+
+User
+
+Action
+
+Timestamp
+
+Relative Time
+
+==========================================================
+PERMISSIONS
+==========================================================
+
+Protect every endpoint.
+
+Permissions:
+
+leads.read
+
+leads.create
+
+leads.update
+
+leads.delete
+
+leads.import
+
+leads.export
+
+leads.bulk
+
+notes.manage
+
+attachments.manage
+
+==========================================================
+AUDIT LOG
+==========================================================
+
+Log:
+
+Lead Created
+
+Lead Updated
+
+Lead Deleted
+
+CSV Imported
+
+CSV Exported
+
+Bulk Action
+
+Status Change
+
+Owner Change
+
+==========================================================
+STEP 2
+FRONTEND API
+==========================================================
+
+Create fully typed services.
+
+Create hooks:
+
+useLeads()
+
+useLead()
+
+useCreateLead()
+
+useUpdateLead()
+
+useDeleteLead()
+
+useImportLeads()
+
+useExportLeads()
+
+useBulkLeads()
+
+useLeadNotes()
+
+useLeadAttachments()
+
+useLeadActivities()
+
+==========================================================
+STEP 3
+UI
+==========================================================
+
+Integrate existing UI.
+
+Do NOT redesign components.
+
+Create pages:
+
+Lead List
+
+Lead Details
+
+Create Lead
+
+Edit Lead
+
+Import Leads
+
+Activity Timeline
+
+Notes
+
+Attachments
+
+==========================================================
+LEAD TABLE
+==========================================================
+
+Enterprise data table.
+
+Support:
+
+Search
+
+Filters
+
+Sorting
+
+Pagination
+
+Column Visibility
+
+Bulk Selection
+
+Sticky Header
+
+Responsive
+
+Saved Views
+
+Quick Actions
+
+==========================================================
+LEAD DETAILS
+==========================================================
+
+Professional CRM layout.
+
+Sections:
+
+Basic Information
+
+Company
+
+Contact
+
+Lead Score
+
+Tags
+
+Notes
+
+Attachments
+
+Timeline
+
+Owner
+
+Status
+
+Quick Actions
+
+==========================================================
+IMPORT PAGE
+==========================================================
+
+Step Wizard
+
+Upload CSV
+
+Preview
+
+Map Fields
+
+Validation
+
+Import
+
+Summary
+
+==========================================================
+FORMS
+==========================================================
+
+Use
+
+React Hook Form
+
+Zod
+
+Existing UI Components
+
+Validation
+
+Loading
+
+Errors
+
+==========================================================
+STATE
+==========================================================
+
+Reuse existing architecture.
+
+Cache data.
+
+Invalidate correctly.
+
+Optimistic updates.
+
+==========================================================
+UX
+==========================================================
+
+Support:
+
+Loading
+
+Skeletons
+
+Success Toasts
+
+Error Toasts
+
+Retry
+
+Confirmation Dialogs
+
+Optimistic UI
+
+Empty States
+
+==========================================================
+TESTING
+==========================================================
+
+Verify:
+
+CRUD
+
+Search
+
+Filters
+
+Pagination
+
+CSV Import
+
+CSV Export
+
+Bulk Actions
+
+Notes
+
+Attachments
+
+Timeline
+
+Permissions
+
+==========================================================
+CODE QUALITY
+==========================================================
+
+Strict TypeScript
+
+SOLID
+
+Feature-first architecture
+
+Repository pattern
+
+Service layer
+
+Reusable hooks
+
+Reusable API layer
+
+Reusable components
+
+No duplicated logic
+
+No inline fetches
+
+No hardcoded values
+
+==========================================================
+FINAL DELIVERABLE
+==========================================================
+
+The Lead Management module should feel comparable to HubSpot, Salesforce, Attio, or Pipedrive.
+
+A user should be able to:
+
+Create leads
+
+↓
+
+Search instantly
+
+↓
+
+Filter and sort
+
+↓
+
+Import thousands of leads from CSV
+
+↓
+
+Manage notes
+
+↓
+
+Upload attachments
+
+↓
+
+View complete activity history
+
+↓
+
+Perform bulk actions
+
+↓
+
+Export filtered data
+
+↓
+
+Navigate through paginated results
+
+Everything must integrate seamlessly with the existing Organization module, Authentication, RBAC, Multi-tenancy, API architecture, and Design System.
+
+Do not stop after backend implementation.
+
+Complete backend first, then fully integrate and connect the frontend before finishing.
+
+Do not leave TODOs or placeholders.

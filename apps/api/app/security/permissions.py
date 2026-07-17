@@ -21,7 +21,9 @@ RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     # the Organization module's routes actually check.
     "organizations": ("read", "update", "delete", "manage"),
     "campaigns": ("create", "read", "update", "delete"),
-    "leads": ("create", "read", "update", "delete"),
+    "leads": ("create", "read", "update", "delete", "import", "export", "bulk"),
+    "notes": ("manage",),
+    "attachments": ("manage",),
     "reports": ("read",),
     "analytics": ("read",),
     "billing": ("manage",),
@@ -63,7 +65,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         }
     ],
     RoleNameEnum.MANAGER: [
-        *_all("campaigns", "leads"),
+        *_all("campaigns", "leads", "notes", "attachments"),
         ("reports", "read"),
         ("analytics", "read"),
         ("tasks", "manage"),
@@ -75,6 +77,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         ("leads", "create"),
         ("leads", "read"),
         ("leads", "update"),
+        ("notes", "manage"),
+        ("attachments", "manage"),
         ("campaigns", "read"),
         ("tasks", "manage"),
         ("notifications", "manage"),

@@ -232,9 +232,37 @@ class Lead(BaseModel):
     job_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     website: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    twitter_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    address: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True,
+        comment="Structured street address: {line1, line2, postal_code}. City/state/country are separate columns."
+    )
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    company_size: Mapped[Optional[CompanySizeEnum]] = mapped_column(
+        String(20), nullable=True,
+        comment="Denormalized from Company.size_range; free-standing when no linked Company"
+    )
+    revenue: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True, comment="Denormalized from Company.annual_revenue"
+    )
+    employee_count: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Denormalized from Company.employee_count"
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Simple, user-editable relevance score (0-100). Distinct from LeadScore
+    # below, which is an append-only *history* of AI-computed multi-dimension
+    # scores — this is the plain CRM-style single number shown in list/detail
+    # views until an AI scoring job (future module) starts writing LeadScore
+    # rows, at which point the UI can prefer the latest LeadScore instead.
+    lead_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # AI-generated fields
     icp_match_score: Mapped[Optional[float]] = mapped_column(
@@ -285,7 +313,13 @@ class Lead(BaseModel):
         Index("ix_leads_org_status", "organization_id", "status"),
         Index("ix_leads_org_owner", "organization_id", "owner_id"),
         Index("ix_leads_created_at", "created_at"),
+        Index("ix_leads_org_archived", "organization_id", "is_archived"),
+        Index("ix_leads_org_favorite", "organization_id", "is_favorite"),
     )
+
+    @property
+    def full_name(self) -> str:
+        return " ".join(part for part in (self.first_name, self.last_name) if part) or "Unknown"
 
 
 class LeadScore(BaseModel):
@@ -463,3 +497,4 @@ class Attachment(BaseModel):
 
     # Relationships
     lead: Mapped["Lead"] = relationship("Lead", back_populates="attachments")
+    uploader: Mapped[Optional["User"]] = relationship("User", foreign_keys=[uploaded_by])

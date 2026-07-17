@@ -76,6 +76,7 @@ class LeadStatusEnum(str, enum.Enum):
     OPENED = "opened"  # Email opened
     REPLIED = "replied"  # Prospect replied
     INTERESTED = "interested"  # Positive reply
+    QUALIFIED = "qualified"  # Manually vetted as a real opportunity (CRM stage, distinct from the AI-outreach INTERESTED signal)
     DEMO_SCHEDULED = "demo_scheduled"
     PROPOSAL = "proposal"
     NEGOTIATION = "negotiation"
@@ -95,6 +96,8 @@ class ActivityTypeEnum(str, enum.Enum):
     MEETING_SCHEDULED = "meeting_scheduled"
     MEETING_COMPLETED = "meeting_completed"
     NOTE_ADDED = "note_added"
+    NOTE_UPDATED = "note_updated"
+    NOTE_DELETED = "note_deleted"
     STATUS_CHANGED = "status_changed"
     LEAD_IMPORTED = "lead_imported"
     AI_RESEARCH_STARTED = "ai_research_started"
@@ -103,6 +106,19 @@ class ActivityTypeEnum(str, enum.Enum):
     TASK_CREATED = "task_created"
     TASK_COMPLETED = "task_completed"
     CALL_LOGGED = "call_logged"
+    # Lead Management module (CRM > Leads)
+    LEAD_CREATED = "lead_created"
+    LEAD_UPDATED = "lead_updated"
+    LEAD_DELETED = "lead_deleted"
+    OWNER_CHANGED = "owner_changed"
+    TAGS_CHANGED = "tags_changed"
+    ATTACHMENT_UPLOADED = "attachment_uploaded"
+    ATTACHMENT_DELETED = "attachment_deleted"
+    LEAD_FAVORITED = "lead_favorited"
+    LEAD_UNFAVORITED = "lead_unfavorited"
+    LEAD_ARCHIVED = "lead_archived"
+    LEAD_RESTORED = "lead_restored"
+    BULK_ACTION = "bulk_action"
 
 
 class CompanySizeEnum(str, enum.Enum):
