@@ -12,6 +12,11 @@ from app.schemas.auth import (
     SessionResponse,
     UserResponse,
 )
+from app.schemas.organizations import (
+    OrganizationAddress,
+    OrganizationDetailResponse,
+    OrganizationMemberResponse,
+)
 from app.security.permissions import role_priority
 from app.services.rbac_service import RBACService
 
@@ -75,4 +80,52 @@ def serialize_role(role: Role) -> RoleResponse:
         name=role.name,
         description=role.description,
         is_system=role.is_system,
+    )
+
+
+def serialize_organization_detail(
+    organization: Organization, *, member_count: int
+) -> OrganizationDetailResponse:
+    return OrganizationDetailResponse(
+        id=str(organization.id),
+        name=organization.name,
+        slug=organization.slug,
+        domain=organization.domain,
+        logo_url=organization.logo_url,
+        website=organization.website,
+        email=organization.email,
+        phone=organization.phone,
+        industry=organization.industry,
+        country=organization.country,
+        company_size=organization.company_size,
+        timezone=organization.timezone,
+        language=organization.language,
+        currency=organization.currency,
+        brand_color=organization.brand_color,
+        description=organization.description,
+        address=OrganizationAddress(**organization.address) if organization.address else None,
+        is_active=organization.is_active,
+        member_count=member_count,
+        created_at=organization.created_at,
+        updated_at=organization.updated_at,
+    )
+
+
+def serialize_organization_member(user: User) -> OrganizationMemberResponse:
+    # `user.roles` must already be eager-loaded (see
+    # UserRepository.list_for_organization's selectinload) — this stays a
+    # plain sync function so it can be mapped over a list without N+1 queries.
+    primary_role = min(user.roles, key=lambda r: role_priority(r.name)) if user.roles else None
+    return OrganizationMemberResponse(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        full_name=user.full_name,
+        avatar_url=user.avatar_url,
+        role=primary_role.name if primary_role else None,
+        status=user.status,
+        email_verified=user.email_verified,
+        joined_at=user.created_at,
+        last_active_at=user.last_login_at,
     )

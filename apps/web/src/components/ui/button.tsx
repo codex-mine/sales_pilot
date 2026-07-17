@@ -7,23 +7,23 @@ import { cn } from "@/lib/utils";
 export const buttonVariants = cva(
   [
     "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap",
-    "rounded-md text-body-md font-medium",
-    "transition-colors duration-fast ease-standard",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:pointer-events-none disabled:opacity-50",
+    "rounded-lg text-body-md font-medium",
+    "transition-all duration-fast ease-standard active:scale-[0.98]",
+    "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100",
   ].join(" "),
   {
     variants: {
       variant: {
         primary:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover active:bg-primary-hover",
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover hover:shadow-md active:bg-primary-hover",
         secondary: "bg-secondary text-secondary-foreground hover:bg-muted",
-        outline: "border border-border bg-transparent text-foreground hover:bg-muted",
+        outline: "border border-border bg-transparent text-foreground hover:bg-muted hover:border-border",
         ghost: "bg-transparent text-foreground hover:bg-muted",
         soft: "bg-accent text-accent-foreground hover:bg-accent/70",
-        success: "bg-success text-success-foreground shadow-sm hover:opacity-90",
-        warning: "bg-warning text-warning-foreground shadow-sm hover:opacity-90",
-        danger: "bg-danger text-danger-foreground shadow-sm hover:opacity-90",
+        success: "bg-success text-success-foreground shadow-sm hover:opacity-90 hover:shadow-md",
+        warning: "bg-warning text-warning-foreground shadow-sm hover:opacity-90 hover:shadow-md",
+        danger: "bg-danger text-danger-foreground shadow-sm hover:opacity-90 hover:shadow-md",
         link: "bg-transparent text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 
 const iconButtonVariants = cva(
   [
-    "inline-flex shrink-0 select-none items-center justify-center rounded-md",
-    "transition-colors duration-fast ease-standard",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex shrink-0 select-none items-center justify-center rounded-lg",
+    "transition-all duration-fast ease-standard active:scale-[0.94]",
+    "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100",
   ].join(" "),
   {
     variants: {

@@ -16,7 +16,10 @@ from app.models.enums import RoleNameEnum
 # one Permission row per (resource, action) pair from this table.
 RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     "users": ("create", "read", "update", "delete"),
-    "organizations": ("manage",),
+    # "manage" predates this set and is kept for backward compatibility with
+    # existing role grants; "read"/"update"/"delete" are the granular actions
+    # the Organization module's routes actually check.
+    "organizations": ("read", "update", "delete", "manage"),
     "campaigns": ("create", "read", "update", "delete"),
     "leads": ("create", "read", "update", "delete"),
     "reports": ("read",),
@@ -50,7 +53,14 @@ def _all(*resources: str) -> list[tuple[str, str]]:
 DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
     RoleNameEnum.OWNER: ALL_PERMISSIONS,
     RoleNameEnum.ADMIN: [
-        p for p in ALL_PERMISSIONS if p not in {("organizations", "manage"), ("billing", "manage")}
+        p
+        for p in ALL_PERMISSIONS
+        if p
+        not in {
+            ("organizations", "manage"),
+            ("organizations", "delete"),
+            ("billing", "manage"),
+        }
     ],
     RoleNameEnum.MANAGER: [
         *_all("campaigns", "leads"),
@@ -59,6 +69,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         ("tasks", "manage"),
         ("notifications", "manage"),
         ("users", "read"),
+        ("organizations", "read"),
     ],
     RoleNameEnum.SALES: [
         ("leads", "create"),
@@ -67,18 +78,21 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         ("campaigns", "read"),
         ("tasks", "manage"),
         ("notifications", "manage"),
+        ("organizations", "read"),
     ],
     RoleNameEnum.MEMBER: [
         ("leads", "read"),
         ("campaigns", "read"),
         ("reports", "read"),
         ("notifications", "manage"),
+        ("organizations", "read"),
     ],
     RoleNameEnum.VIEWER: [
         ("leads", "read"),
         ("campaigns", "read"),
         ("reports", "read"),
         ("analytics", "read"),
+        ("organizations", "read"),
     ],
 }
 

@@ -107,6 +107,15 @@ class ConflictError(AppError):
     default_message = "This resource already exists."
 
 
+class ValidationError(AppError):
+    """For request-shape-valid-but-business-rule-invalid input (e.g. a bad
+    file upload) that FastAPI/Pydantic's own 422 handling doesn't cover."""
+
+    status_code = 400
+    error_code = "validation_error"
+    default_message = "The submitted data is invalid."
+
+
 # ─── Rate limiting ─────────────────────────────────────────────────────────────
 
 class RateLimitExceededError(AppError):

@@ -11,6 +11,7 @@ import {
   Settings,
   User as UserIcon,
 } from "@/icons";
+import { Logo } from "@/components/brand/logo";
 import { Avatar } from "@/components/ui/avatar";
 import {
   Drawer,
@@ -85,8 +86,8 @@ export function AppShell({ children }: { children: ReactNode }): React.ReactElem
       sidebar={
         <Sidebar>
           <SidebarHeader>
-            <Link href="/dashboard" className="text-heading-6 font-display font-semibold text-primary">
-              SalesPilot
+            <Link href="/dashboard">
+              <Logo size="sm" />
             </Link>
           </SidebarHeader>
           <SidebarContent>
@@ -151,8 +152,8 @@ export function AppShell({ children }: { children: ReactNode }): React.ReactElem
             <DrawerTitle>Navigation</DrawerTitle>
           </VisuallyHidden>
           <div className="flex h-14 items-center border-b border-border px-4">
-            <Link href="/dashboard" className="text-heading-6 font-display font-semibold text-primary">
-              SalesPilot
+            <Link href="/dashboard">
+              <Logo size="sm" />
             </Link>
           </div>
           <div className="p-3">

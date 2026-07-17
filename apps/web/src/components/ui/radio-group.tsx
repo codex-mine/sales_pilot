@@ -21,15 +21,16 @@ export const RadioGroupItem = forwardRef<
     ref={ref}
     className={cn(
       "aspect-square size-4 shrink-0 rounded-full border border-input bg-card",
-      "transition-colors duration-fast ease-standard",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-      "disabled:cursor-not-allowed disabled:opacity-50",
+      "transition-all duration-fast ease-standard",
+      "hover:border-ring/60",
+      "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input",
       "data-[state=checked]:border-primary",
       className,
     )}
     {...props}
   >
-    <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
+    <RadioGroupPrimitive.Indicator className="flex animate-in items-center justify-center zoom-in-50 duration-fast">
       <Circle className="size-2 fill-primary text-primary" />
     </RadioGroupPrimitive.Indicator>
   </RadioGroupPrimitive.Item>

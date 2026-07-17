@@ -2,6 +2,7 @@
 
 import { Slot } from "@radix-ui/react-slot";
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 import {
   createContext,
   useContext,
@@ -122,7 +123,10 @@ export function SidebarNavItem({
   ...props
 }: SidebarNavItemProps): React.ReactElement {
   const { isCollapsed } = useSidebarContext();
-  const Comp = asChild ? Slot : "a";
+  // Client-side navigation is the point of an SPA sidebar — a raw <a> here
+  // would force a full browser reload on every nav click, so the
+  // non-`asChild` path renders next/link instead of a plain anchor.
+  const Comp = asChild ? Slot : Link;
 
   const content = (
     <Comp
@@ -131,9 +135,9 @@ export function SidebarNavItem({
       className={cn(
         "group flex h-9 items-center gap-3 rounded-md px-3 text-body-sm font-medium transition-colors duration-fast ease-standard",
         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
         isActive
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          ? "bg-accent text-accent-foreground"
           : "text-sidebar-foreground/70",
         isCollapsed && "justify-center px-0",
         className,
@@ -166,7 +170,7 @@ export function SidebarTrigger({ className }: { className?: string }): React.Rea
       aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       className={cn(
         "flex size-8 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
         className,
       )}
     >

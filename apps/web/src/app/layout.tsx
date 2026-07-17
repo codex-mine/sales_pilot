@@ -23,7 +23,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "SalesPilot",
+  title: "SalesPilot AI",
   description: "AI SDR platform",
 };
 

@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     smtp_from_email: str = "no-reply@salespilot.app"
     smtp_from_name: str = "SalesPilot"
 
+    # ─── File uploads (organization logo) ──────────────────────────────────────
+    # Local disk storage — no cloud storage credentials exist in this project
+    # yet. `upload_dir` is relative to the app's working directory and must be
+    # a Docker volume (not container-ephemeral storage) to survive rebuilds.
+    upload_dir: str = "uploads"
+    max_logo_size_mb: int = 5
+    # Used to build the absolute `logo_url` returned to clients — the browser
+    # requests media directly from the API origin, same as NEXT_PUBLIC_API_URL
+    # on the frontend points there for JSON endpoints.
+    api_base_url: str = "http://localhost:8000"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value):

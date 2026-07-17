@@ -4,18 +4,19 @@ import { cn } from "@/lib/utils";
 
 const textareaVariants = cva(
   [
-    "flex w-full rounded-md border bg-card px-3 py-2 text-foreground",
+    "flex w-full rounded-lg border bg-muted px-3 py-2 text-foreground",
     "text-body-md placeholder:text-muted-foreground",
-    "transition-colors duration-fast ease-standard",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:opacity-70",
+    "transition-all duration-fast ease-standard",
+    "hover:bg-muted/70",
+    "focus-visible:!outline-none focus-visible:bg-card focus-visible:ring-4",
+    "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:opacity-70 disabled:hover:bg-muted",
   ].join(" "),
   {
     variants: {
       state: {
-        default: "border-input focus-visible:ring-ring",
-        success: "border-success focus-visible:ring-success",
-        error: "border-danger focus-visible:ring-danger",
+        default: "border-transparent focus-visible:border-ring focus-visible:ring-ring/10",
+        success: "border-success bg-card hover:bg-card focus-visible:border-success focus-visible:ring-success/10",
+        error: "border-danger bg-card hover:bg-card focus-visible:border-danger focus-visible:ring-danger/10",
       },
     },
     defaultVariants: {

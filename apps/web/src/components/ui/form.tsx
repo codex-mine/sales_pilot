@@ -157,7 +157,10 @@ export const FormMessage = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLP
       <p
         ref={ref}
         id={formMessageId}
-        className={cn("text-body-sm font-medium text-danger", className)}
+        className={cn(
+          "animate-in text-body-sm font-medium text-danger fade-in-0 slide-in-from-top-0.5 duration-fast",
+          className,
+        )}
         {...props}
       >
         {body}

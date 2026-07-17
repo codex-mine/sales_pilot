@@ -24,7 +24,7 @@ export function AppProviders({ children }: { children: ReactNode }): React.React
     () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }),
   );
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <QueryClientProvider client={client}>
         <TooltipProvider delayDuration={200}>
           <AuthInitializer />
