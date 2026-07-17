@@ -51,7 +51,7 @@ DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayNam
 export const DropdownMenuContent = forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 6, ...props }, ref) => (
+>(({ className, sideOffset = 6, onClick, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
@@ -62,6 +62,15 @@ export const DropdownMenuContent = forwardRef<
         "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
         className,
       )}
+      // React portals bubble synthetic events through the React tree, not the
+      // DOM tree — without this, clicking an item here (e.g. inside a table
+      // row that has its own onClick-to-navigate) also fires the row's click
+      // handler, since this content is a React descendant of that row even
+      // though it's portaled to document.body.
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       {...props}
     />
   </DropdownMenuPrimitive.Portal>

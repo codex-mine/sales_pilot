@@ -1,0 +1,11 @@
+First Name,Last Name,Email,Phone,Job Title,Company,Website,Industry,Status,Source,Country,State,City,LinkedIn URL,Tags
+John,Smith,john.smith@acmetech.com,+1555010001,Sales Manager,Acme Tech,https://acmetech.com,Software,new,Website,USA,California,San Francisco,https://linkedin.com/in/johnsmith,"saas,b2b"
+Sarah,Johnson,sarah@brightsolutions.io,+1555010002,CEO,Bright Solutions,https://brightsolutions.io,Consulting,contacted,LinkedIn,USA,Texas,Austin,https://linkedin.com/in/sarahjohnson,consulting
+Michael,Lee,michael@fincore.com,+1555010003,CTO,FinCore,https://fincore.com,Finance,qualified,Referral,USA,New York,New York,https://linkedin.com/in/michaellee,fintech
+Emily,Davis,emily@healthplus.org,+1555010004,Director,HealthPlus,https://healthplus.org,Healthcare,interested,Cold Email,USA,Illinois,Chicago,https://linkedin.com/in/emilydavis,health
+David,Wilson,david@cloudnova.ai,+1555010005,VP Sales,CloudNova,https://cloudnova.ai,AI,demo_scheduled,Apollo,USA,Washington,Seattle,https://linkedin.com/in/davidwilson,ai
+Lisa,Brown,lisa@retailhub.com,+1555010006,Founder,RetailHub,https://retailhub.com,Retail,proposal,Google,USA,Florida,Miami,https://linkedin.com/in/lisabrown,retail
+James,Taylor,james@buildpro.com,+1555010007,Operations Manager,BuildPro,https://buildpro.com,Construction,negotiation,Trade Show,USA,Colorado,Denver,https://linkedin.com/in/jamestaylor,construction
+Olivia,Martin,olivia@edusphere.edu,+1555010008,Principal,EduSphere,https://edusphere.edu,Education,won,Website,Canada,Ontario,Toronto,https://linkedin.com/in/oliviamartin,education
+Daniel,White,daniel@greenenergy.co,+1555010009,Procurement Head,Green Energy Co,https://greenenergy.co,Energy,lost,Referral,UK,England,London,https://linkedin.com/in/danielwhite,energy
+Sophia,Clark,sophia@travelsync.com,+1555010010,Business Development,TravelSync,https://travelsync.com,Travel,new,Facebook,Australia,NSW,Sydney,https://linkedin.com/in/sophiaclark,travel

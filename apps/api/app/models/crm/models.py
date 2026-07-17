@@ -37,7 +37,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, BaseModel
-from app.models.enums import ActivityTypeEnum, CompanySizeEnum, LeadStatusEnum
+from app.models.enums import ActivityTypeEnum, CompanySizeEnum, CompanyStatusEnum, LeadStatusEnum
 
 if TYPE_CHECKING:
     from app.models.identity.models import User, Organization
@@ -70,6 +70,30 @@ class LeadTag(Base):
     )
 
 
+class CompanyTag(Base):
+    """M:M between Company and Tag — reuses the same `tags` table as leads
+    (Tag is organization-scoped, not lead-specific), so a tag created for a
+    lead can be reused on a company and vice versa without duplication."""
+    __tablename__ = "company_tags"
+    __table_args__ = (
+        Index("ix_company_tags_company", "company_id"),
+        Index("ix_company_tags_tag", "tag_id"),
+    )
+
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
+    )
+    tagged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    tagged_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 # ─── Core Tables ─────────────────────────────────────────────────────────────
 
 class Company(BaseModel):
@@ -90,23 +114,46 @@ class Company(BaseModel):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False, index=True
     )
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    legal_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     website: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     domain: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True, index=True,
         comment="Normalized domain (no www) for deduplication"
     )
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    twitter_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    facebook_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    instagram_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     sub_industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    employee_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    address: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True,
+        comment="Structured street address: {line1, line2}. City/state/country/postal_code are separate columns."
+    )
+    employee_count: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Self-reported/researched real-world headcount — distinct from contact_count (CRM records on file)"
+    )
     size_range: Mapped[Optional[CompanySizeEnum]] = mapped_column(String(20), nullable=True)
     annual_revenue: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False, comment="ISO 4217 code")
+    founded_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    status: Mapped[CompanyStatusEnum] = mapped_column(
+        String(20), default=CompanyStatusEnum.PROSPECT, nullable=False, index=True
+    )
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     technologies: Mapped[Optional[list]] = mapped_column(
         ARRAY(String), nullable=True,
         comment="Tech stack inferred from research (e.g. ['Salesforce', 'AWS'])"
@@ -114,17 +161,34 @@ class Company(BaseModel):
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
 
     # Relationships
+    owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[owner_id])
     contacts: Mapped[List["Contact"]] = relationship(
         "Contact", back_populates="company", cascade="all, delete-orphan"
     )
     leads: Mapped[List["Lead"]] = relationship(
         "Lead", back_populates="company"
     )
+    tags: Mapped[List["Tag"]] = relationship("Tag", secondary="company_tags", back_populates="companies")
+    notes: Mapped[List["Note"]] = relationship(
+        "Note", back_populates="company", cascade="all, delete-orphan"
+    )
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", back_populates="company", cascade="all, delete-orphan"
+    )
+    attachments: Mapped[List["Attachment"]] = relationship(
+        "Attachment", back_populates="company", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("organization_id", "domain", name="uq_company_org_domain"),
         Index("ix_companies_org_name", "organization_id", "name"),
+        Index("ix_companies_org_owner", "organization_id", "owner_id"),
+        Index("ix_companies_org_archived", "organization_id", "archived_at"),
     )
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None
 
 
 class Contact(BaseModel):
@@ -160,6 +224,10 @@ class Contact(BaseModel):
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     timezone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     is_decision_maker: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="active", nullable=False,
+        comment="Simple active/inactive flag for the Company > Employees display; full contact lifecycle management belongs to the future Contacts module"
+    )
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
 
     # Relationships
@@ -360,10 +428,11 @@ class LeadScore(BaseModel):
 
 class Tag(BaseModel):
     """
-    Organizational tags for leads. Tags are scoped to an organization.
+    Organizational tags, shared across leads and companies. Tags are scoped
+    to an organization, not to a single entity type.
     Using a proper Tag table (vs JSONB array) enables:
     - Fast filtering: WHERE EXISTS (SELECT 1 FROM lead_tags lt JOIN tags t ON ...)
-    - Tag rename without touching every lead row
+    - Tag rename without touching every lead/company row
     - Tag analytics (most common tags, etc.)
     """
     __tablename__ = "tags"
@@ -383,6 +452,9 @@ class Tag(BaseModel):
     leads: Mapped[List["Lead"]] = relationship(
         "Lead", secondary="lead_tags", back_populates="tags"
     )
+    companies: Mapped[List["Company"]] = relationship(
+        "Company", secondary="company_tags", back_populates="tags"
+    )
 
     __table_args__ = (
         UniqueConstraint("organization_id", "name", name="uq_tag_org_name"),
@@ -391,8 +463,15 @@ class Tag(BaseModel):
 
 class Note(BaseModel):
     """
-    Structured notes on a Lead. Supports rich text (HTML stored as text).
-    Notes are append-friendly but can be edited (updated_at tracks changes).
+    Structured notes on a Lead *or* a Company. Supports rich text (HTML
+    stored as text). Notes are append-friendly but can be edited
+    (updated_at tracks changes).
+
+    lead_id/company_id are both nullable and mutually exclusive (exactly one
+    is set) — this table started Lead-only; the Company module (CRM >
+    Companies) reuses it instead of introducing a parallel CompanyNote table,
+    per the "no duplicate logic" rule. Application code (NoteService) is
+    responsible for setting exactly one anchor.
     """
     __tablename__ = "notes"
 
@@ -400,9 +479,13 @@ class Note(BaseModel):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False, index=True
     )
-    lead_id: Mapped[uuid.UUID] = mapped_column(
+    lead_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        nullable=True, index=True
+    )
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=True, index=True
     )
     author_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -411,13 +494,15 @@ class Note(BaseModel):
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships
-    lead: Mapped["Lead"] = relationship("Lead", back_populates="notes")
+    lead: Mapped[Optional["Lead"]] = relationship("Lead", back_populates="notes")
+    company: Mapped[Optional["Company"]] = relationship("Company", back_populates="notes")
     author: Mapped[Optional["User"]] = relationship("User", foreign_keys=[author_id])
 
 
 class Activity(BaseModel):
     """
-    Append-only timeline of events for a Lead.
+    Append-only timeline of events for a Lead *or* a Company (mutually
+    exclusive anchors — see Note's docstring for the same pattern/rationale).
 
     Why append-only? Because updating a single status field destroys history.
     With append-only events we can reconstruct the full timeline, compute
@@ -432,9 +517,13 @@ class Activity(BaseModel):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False, index=True
     )
-    lead_id: Mapped[uuid.UUID] = mapped_column(
+    lead_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        nullable=True, index=True
+    )
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=True, index=True
     )
     actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
@@ -459,11 +548,13 @@ class Activity(BaseModel):
     )
 
     # Relationships
-    lead: Mapped["Lead"] = relationship("Lead", back_populates="activities")
+    lead: Mapped[Optional["Lead"]] = relationship("Lead", back_populates="activities")
+    company: Mapped[Optional["Company"]] = relationship("Company", back_populates="activities")
     actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])
 
     __table_args__ = (
         Index("ix_activities_org_lead", "organization_id", "lead_id"),
+        Index("ix_activities_org_company", "organization_id", "company_id"),
         Index("ix_activities_type_occurred", "activity_type", "occurred_at"),
         Index("ix_activities_entity", "entity_type", "entity_id"),
     )
@@ -471,8 +562,10 @@ class Activity(BaseModel):
 
 class Attachment(BaseModel):
     """
-    File attachments for leads (call recordings, proposals, etc.).
-    Files are stored in S3; this table stores the metadata.
+    File attachments for leads *or* companies (call recordings, proposals,
+    etc.). Files are stored on local disk via StorageService; this table
+    stores the metadata. lead_id/company_id are mutually exclusive, mirroring
+    Note/Activity's polymorphism.
     """
     __tablename__ = "attachments"
 
@@ -480,9 +573,13 @@ class Attachment(BaseModel):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False, index=True
     )
-    lead_id: Mapped[uuid.UUID] = mapped_column(
+    lead_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        nullable=True, index=True
+    )
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=True, index=True
     )
     uploaded_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -496,5 +593,6 @@ class Attachment(BaseModel):
     mime_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Relationships
-    lead: Mapped["Lead"] = relationship("Lead", back_populates="attachments")
+    lead: Mapped[Optional["Lead"]] = relationship("Lead", back_populates="attachments")
+    company: Mapped[Optional["Company"]] = relationship("Company", back_populates="attachments")
     uploader: Mapped[Optional["User"]] = relationship("User", foreign_keys=[uploaded_by])
