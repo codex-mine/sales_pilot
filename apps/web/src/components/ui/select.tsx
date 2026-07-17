@@ -16,12 +16,14 @@ export const SelectTrigger = forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-card px-3",
+      "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-transparent bg-muted px-3",
       "text-body-md text-foreground",
-      "transition-colors duration-fast ease-standard",
-      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-      "disabled:cursor-not-allowed disabled:opacity-50",
+      "transition-all duration-fast ease-standard",
+      "hover:bg-muted/70",
+      "focus:!outline-none focus:border-ring focus:bg-card focus:ring-4 focus:ring-ring/10",
+      "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-muted",
       "data-[placeholder]:text-muted-foreground",
+      "data-[state=open]:border-ring data-[state=open]:bg-card data-[state=open]:ring-4 data-[state=open]:ring-ring/10",
       className,
     )}
     {...props}
@@ -43,7 +45,7 @@ export const SelectContent = forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-dropdown",
+        "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-dropdown",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
@@ -90,9 +92,10 @@ export const SelectItem = forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2",
+      "relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2",
       "text-body-md outline-none",
-      "focus:bg-muted focus:text-foreground",
+      "transition-colors duration-fast ease-standard",
+      "focus:bg-accent focus:text-accent-foreground",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}

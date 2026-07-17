@@ -1,4 +1,5 @@
 import { Slot } from "@radix-ui/react-slot";
+import Link from "next/link";
 import { forwardRef, type ComponentPropsWithoutRef, type HTMLAttributes, type ReactNode } from "react";
 import { ChevronRight, MoreHorizontal } from "@/icons";
 import { cn } from "@/lib/utils";
@@ -28,9 +29,9 @@ BreadcrumbItem.displayName = "BreadcrumbItem";
 
 export const BreadcrumbLink = forwardRef<
   HTMLAnchorElement,
-  ComponentPropsWithoutRef<"a"> & { asChild?: boolean }
+  Omit<ComponentPropsWithoutRef<"a">, "href"> & { href: string; asChild?: boolean }
 >(({ asChild, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "a";
+  const Comp = asChild ? Slot : Link;
   return (
     <Comp
       ref={ref}

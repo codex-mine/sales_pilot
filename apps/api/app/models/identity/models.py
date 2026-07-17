@@ -137,6 +137,23 @@ class Organization(BaseModel):
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="UTC", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, comment="Public/contact email, distinct from any user's login email"
+    )
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    company_size: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True, comment="Bucketed headcount, e.g. '1-10', '11-50', '51-200'"
+    )
+    language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False, comment="ISO 4217 code")
+    brand_color: Mapped[Optional[str]] = mapped_column(
+        String(7), nullable=True, comment="Hex color, e.g. #16A34A"
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    address: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True,
+        comment="Structured mailing address: {line1, line2, city, state, postal_code}. Country uses the existing `country` column, not duplicated here."
+    )
     metadata_: Mapped[Optional[dict]] = mapped_column(
         "metadata", JSONB, nullable=True,
         comment="Flexible org-level metadata (branding, feature flags, etc.)"

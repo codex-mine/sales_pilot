@@ -13,16 +13,16 @@ export const Switch = forwardRef<
     className={cn(
       "peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent",
       "transition-colors duration-fast ease-standard",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "disabled:cursor-not-allowed disabled:opacity-50",
-      "data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted",
+      "data-[state=checked]:bg-primary data-[state=checked]:hover:bg-primary-hover data-[state=unchecked]:bg-muted data-[state=unchecked]:hover:bg-muted-foreground/30",
       className,
     )}
     {...props}
   >
     <SwitchPrimitive.Thumb
       className={cn(
-        "pointer-events-none block size-4 rounded-full bg-card shadow-sm ring-0",
+        "pointer-events-none block size-4 rounded-full bg-card shadow-md ring-0",
         "transition-transform duration-fast ease-standard",
         "data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0.5",
       )}

@@ -20,6 +20,16 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/
   "",
 );
 
+/** The API's origin (no `/api/v1` suffix) — for media/static file URLs like organization logos, which the backend returns as paths relative to its own root, not under the versioned API prefix. */
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+$/, "");
+
+/** Resolves a backend-relative media path (e.g. `/media/organizations/...`) to an absolute URL. Already-absolute URLs pass through unchanged. */
+export function getMediaUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (/^https?:\/\//.test(path)) return path;
+  return `${API_ORIGIN}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 // Endpoints that legitimately return 401 as a *result*, not as "your session
 // expired" — a refresh attempt here would be pointless or actively wrong
 // (e.g. retrying a refresh with the very refresh token that just failed).
