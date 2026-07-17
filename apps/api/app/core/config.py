@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     # a Docker volume (not container-ephemeral storage) to survive rebuilds.
     upload_dir: str = "uploads"
     max_logo_size_mb: int = 5
+    max_attachment_size_mb: int = 25
     # Used to build the absolute `logo_url` returned to clients — the browser
     # requests media directly from the API origin, same as NEXT_PUBLIC_API_URL
     # on the frontend points there for JSON endpoints.

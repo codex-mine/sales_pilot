@@ -1,5 +1,6 @@
 """
-Local-disk file storage for the Organization module's logo upload.
+Local-disk file storage for the Organization module's logo upload and the
+Lead Management module's attachments.
 
 No cloud storage (S3/GCS) credentials exist anywhere in this project yet, so
 this stores files on a Docker-volume-backed local path and serves them via a
@@ -21,6 +22,24 @@ from app.exceptions.errors import ValidationError
 _ALLOWED_FORMATS = {"PNG": "png", "JPEG": "jpg", "WEBP": "webp"}
 _ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
+# Lead attachments accept a broader set of everyday business-document types.
+# Unlike the logo path, these aren't necessarily images, so there's no
+# decode-and-verify step — validation is by declared content-type/extension.
+_ATTACHMENT_EXTENSIONS_BY_CONTENT_TYPE = {
+    "application/pdf": "pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-excel": "xls",
+    "text/csv": "csv",
+    "application/zip": "zip",
+    "application/x-zip-compressed": "zip",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
+
 
 class StorageService:
     def __init__(self, settings: Settings | None = None) -> None:
@@ -28,6 +47,9 @@ class StorageService:
 
     def _org_dir(self, organization_id: uuid.UUID) -> Path:
         return Path(self.settings.upload_dir) / "organizations" / str(organization_id)
+
+    def _attachments_dir(self, organization_id: uuid.UUID, lead_id: uuid.UUID) -> Path:
+        return Path(self.settings.upload_dir) / "organizations" / str(organization_id) / "leads" / str(lead_id)
 
     async def save_logo(self, organization_id: uuid.UUID, file: UploadFile) -> str:
         """Validates and persists an organization logo, replacing any existing
@@ -88,3 +110,41 @@ class StorageService:
             return
         for existing in org_dir.glob("logo.*"):
             existing.unlink(missing_ok=True)
+
+    async def save_lead_attachment(
+        self, organization_id: uuid.UUID, lead_id: uuid.UUID, file: UploadFile
+    ) -> tuple[str, str, int]:
+        """Validates and persists a lead attachment. Returns
+        (file_key, public_url, file_size) — `file_key` is what's stored on
+        `Attachment.file_key`; multiple attachments per lead coexist (unlike
+        the single-slot logo), each under its own generated filename so
+        same-named uploads never collide."""
+        extension = _ATTACHMENT_EXTENSIONS_BY_CONTENT_TYPE.get(file.content_type or "")
+        if extension is None:
+            raise ValidationError(
+                "Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, images, ZIP.",
+                errors={"file": ["Unsupported file type."]},
+            )
+
+        content = await file.read()
+        max_bytes = self.settings.max_attachment_size_mb * 1024 * 1024
+        if len(content) > max_bytes:
+            raise ValidationError(
+                f"File too large. Maximum size is {self.settings.max_attachment_size_mb}MB.",
+                errors={"file": ["File too large."]},
+            )
+
+        lead_dir = self._attachments_dir(organization_id, lead_id)
+        lead_dir.mkdir(parents=True, exist_ok=True)
+
+        stored_name = f"{uuid.uuid4().hex}.{extension}"
+        (lead_dir / stored_name).write_bytes(content)
+
+        file_key = f"organizations/{organization_id}/leads/{lead_id}/{stored_name}"
+        public_url = f"/media/organizations/{organization_id}/leads/{lead_id}/{stored_name}"
+        return file_key, public_url, len(content)
+
+    def delete_lead_attachment(self, organization_id: uuid.UUID, lead_id: uuid.UUID, file_key: str) -> None:
+        stored_name = file_key.rsplit("/", 1)[-1]
+        path = self._attachments_dir(organization_id, lead_id) / stored_name
+        path.unlink(missing_ok=True)

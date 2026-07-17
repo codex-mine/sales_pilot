@@ -10,6 +10,7 @@ import {
   Menu,
   Settings,
   User as UserIcon,
+  Users,
 } from "@/icons";
 import { Logo } from "@/components/brand/logo";
 import { Avatar } from "@/components/ui/avatar";
@@ -43,6 +44,7 @@ import { getInitials } from "@/lib/utils";
 
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/leads", label: "Leads", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/settings/organization", label: "Organization", icon: Building2 },
 ];
@@ -56,7 +58,10 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           href={href}
           label={label}
           icon={icon}
-          isActive={pathname === href}
+          // "Leads" has sub-routes (/leads/[id], /leads/import) without their
+          // own nav entries, so it needs prefix matching to stay highlighted
+          // there; every other item maps 1:1 to a literal href.
+          isActive={href === "/leads" ? pathname.startsWith(href) : pathname === href}
           onClick={onNavigate}
         />
       ))}

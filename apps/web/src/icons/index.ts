@@ -125,6 +125,12 @@ export {
   Image as ImageIcon,
   Inbox,
   Archive,
+  ArchiveRestore,
+  Pin,
+  Linkedin,
+  Twitter,
+  History,
+  UserCog,
 
   // Misc UI
   Command,
