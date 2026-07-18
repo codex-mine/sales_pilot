@@ -146,7 +146,7 @@ export function LeadImportWizard(): React.ReactElement {
 
       {step === 2 && result && (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <SummaryStat icon={CheckCircle2} tone="success" label="Imported" value={result.successful_count} />
             <SummaryStat icon={AlertTriangle} tone="warning" label="Duplicates skipped" value={result.duplicate_count} />
             <SummaryStat icon={XCircle} tone="danger" label="Failed" value={result.failed_count} />

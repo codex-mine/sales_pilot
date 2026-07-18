@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
+  Bot,
   Briefcase,
   Building2,
   LayoutDashboard,
@@ -47,6 +48,7 @@ const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/companies", label: "Companies", icon: Briefcase },
+  { href: "/ai", label: "AI", icon: Bot },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/settings/organization", label: "Organization", icon: Building2 },
 ];
@@ -60,11 +62,15 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           href={href}
           label={label}
           icon={icon}
-          // "Leads" and "Companies" have sub-routes (/leads/[id], /leads/import,
-          // /companies/[id]) without their own nav entries, so they need prefix
-          // matching to stay highlighted there; every other item maps 1:1 to a
-          // literal href.
-          isActive={href === "/leads" || href === "/companies" ? pathname.startsWith(href) : pathname === href}
+          // "Leads", "Companies", and "AI" have sub-routes (/leads/[id],
+          // /leads/import, /companies/[id], /ai/agents, ...) without their
+          // own nav entries, so they need prefix matching to stay highlighted
+          // there; every other item maps 1:1 to a literal href.
+          isActive={
+            href === "/leads" || href === "/companies" || href === "/ai"
+              ? pathname.startsWith(href)
+              : pathname === href
+          }
           onClick={onNavigate}
         />
       ))}

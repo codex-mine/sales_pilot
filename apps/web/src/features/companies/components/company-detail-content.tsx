@@ -162,7 +162,7 @@ export function CompanyDetailContent({ companyId }: CompanyDetailContentProps): 
                 <CardTitle>Company details</CardTitle>
               </CardHeader>
               <CardContent>
-                <dl className="grid grid-cols-2 gap-3 text-body-sm">
+                <dl className="grid grid-cols-1 gap-3 text-body-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-caption text-muted-foreground">Legal name</dt>
                     <dd className="text-foreground">{company.legal_name || "—"}</dd>

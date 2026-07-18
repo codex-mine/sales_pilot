@@ -32,9 +32,16 @@ const config: Config = {
         lg: "1024px",
         xl: "1280px",
         "2xl": "1440px",
+        "3xl": "1720px",
       },
     },
     extend: {
+      // 3xl targets large desktop monitors (1080p+ maximized windows and up).
+      // Pairs with the root font-size scaling in globals.css — use it when a
+      // layout should gain columns/width on big displays, not just grow.
+      screens: {
+        "3xl": "1920px",
+      },
       // ─── Spacing tokens ──────────────────────────────────────────────────
       // A fixed, named px-based scale layered on top of Tailwind's default
       // rem scale. Prefer these values (2/4/6/8/10/12/16/20/24/32/40/48/56/
@@ -195,6 +202,7 @@ const config: Config = {
         DEFAULT: "var(--shadow-md)",
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
+        card: "var(--shadow-card)",
         dropdown: "var(--shadow-dropdown)",
         floating: "var(--shadow-floating)",
         modal: "var(--shadow-modal)",

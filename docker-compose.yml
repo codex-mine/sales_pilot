@@ -19,6 +19,19 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }
+  worker:
+    # Same image as `api` — only the command differs. Runs the Celery `ai`
+    # queue so AI jobs execute asynchronously (see app/workers/celery_app.py).
+    build: { context: ./apps/api, dockerfile: Dockerfile }
+    env_file: ./apps/api/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ai_sales_agent
+      - REDIS_URL=redis://redis:6379/0
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "ai,celery", "--concurrency=4"]
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
   postgres:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: ai_sales_agent, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }

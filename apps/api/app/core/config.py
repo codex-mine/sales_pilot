@@ -76,6 +76,37 @@ class Settings(BaseSettings):
     smtp_from_email: str = "no-reply@salespilot.app"
     smtp_from_name: str = "SalesPilot"
 
+    # ─── AI providers (platform-level fallback keys) ───────────────────────────
+    # Per-organization keys live encrypted on Integration rows and take
+    # precedence; these env keys are the fallback so a fresh deploy can run AI
+    # jobs before any org has connected its own key. Ollama has no API key —
+    # it's a local/self-hosted server addressed by base URL.
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    groq_api_key: str | None = None
+    gemini_api_key: str | None = None
+    ollama_base_url: str | None = None
+
+    ai_default_provider: str = "anthropic"
+    ai_default_model: str = "claude-sonnet-5"
+    ai_default_temperature: float = 0.7
+    ai_default_max_tokens: int = 2048
+    ai_max_retries: int = 3
+    ai_job_timeout_seconds: int = 120
+    # Development/testing escape hatch: execute AI jobs inline in the request
+    # process instead of dispatching to Celery, so `docker compose up` without
+    # a worker container still produces results. Never enable in production —
+    # it blocks API workers on LLM latency.
+    ai_execute_jobs_eagerly: bool = False
+
+    # Fernet key for encrypting third-party credentials (AI provider API keys)
+    # at rest on Integration rows. Generate with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Falls back to a key derived from jwt_secret_key when unset (fine for
+    # development; set explicitly in production so JWT secret rotation doesn't
+    # orphan stored credentials).
+    credentials_encryption_key: str | None = None
+
     # ─── File uploads (organization logo) ──────────────────────────────────────
     # Local disk storage — no cloud storage credentials exist in this project
     # yet. `upload_dir` is relative to the app's working directory and must be

@@ -13,3 +13,4 @@ __pycache__/
 !.env.example
 postgres_data/
 redis_data/
+prompts/

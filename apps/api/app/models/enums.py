@@ -403,3 +403,11 @@ class IntegrationTypeEnum(str, enum.Enum):
     WEBHOOK = "webhook"
     LINKEDIN = "linkedin"
     STRIPE = "stripe"
+    # AI provider credentials (org-level API keys, encrypted at rest on the
+    # Integration row — see app/services/ai/ai_settings_service.py). The
+    # column is a plain String(30), so adding members is migration-free.
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GROQ = "groq"
+    GEMINI = "gemini"
+    OLLAMA = "ollama"

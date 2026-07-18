@@ -67,7 +67,7 @@ export function AcceptInvitationForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
         {formError && <p className="text-body-sm text-danger">{formError}</p>}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="first_name"

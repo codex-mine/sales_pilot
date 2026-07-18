@@ -29,7 +29,9 @@ RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     "analytics": ("read",),
     "billing": ("manage",),
     "settings": ("manage",),
-    "ai": ("manage",),
+    # "read" gates viewing AI jobs/usage/prompts; "manage" gates configuration
+    # (agents, keys, prompt activation) and job actions (retry/cancel/approve).
+    "ai": ("read", "manage"),
     "tasks": ("manage",),
     "notifications": ("manage",),
 }
@@ -69,6 +71,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         *_all("campaigns", "leads", "companies", "notes", "attachments"),
         ("reports", "read"),
         ("analytics", "read"),
+        # Managers can see AI activity/spend but not reconfigure providers,
+        # agents, or prompts (OWNER/ADMIN only, via ai.manage).
+        ("ai", "read"),
         ("tasks", "manage"),
         ("notifications", "manage"),
         ("users", "read"),

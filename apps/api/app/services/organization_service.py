@@ -39,6 +39,14 @@ class OrganizationService:
         slug = await self.organizations.generate_unique_slug(name)
         organization = await self.organizations.create(name=name, slug=slug)
         await self.seed_system_roles(organization.id)
+        # Seed the AI system prompt templates alongside roles so AIJobService
+        # never 404s on "no active prompt version" for a fresh organization.
+        # (Deferred import: PromptService pulls in the AI schema module, and
+        # organization_service is imported during auth flows that shouldn't
+        # pay that import cost.)
+        from app.services.ai.prompt_service import PromptService
+
+        await PromptService(self.db).ensure_system_templates(organization.id)
         owner_role = await self.roles.get_by_name(
             organization.id, RoleNameEnum.OWNER.value
         )

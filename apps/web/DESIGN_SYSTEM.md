@@ -89,11 +89,11 @@ makes `bg-primary/10` or `ring-ring/50` work correctly.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `background` / `foreground` | `#FAFAF9` / `#0F172A` | `#0F172A` / near-white | Page canvas + default text |
-| `card`, `popover` | white | `#111827` / slightly lighter | Elevated surfaces |
+| `background` / `foreground` | `#F5F9F7` (green-tinted) / `#0F172A` | `#0F172A` / near-white | Page canvas + default text. The light canvas is deliberately tinted so white cards separate from it **without borders** |
+| `card`, `popover` | white | `#111827` / slightly lighter | Elevated surfaces — borderless in light mode (`shadow-card` provides separation), hairline-bordered in dark mode |
 | `primary` / `primary-hover` | `#16A34A` / `#15803D` | `#22C55E` / `#16A34A` | Brand actions |
 | `secondary`, `muted` | `#F5F5F4` | `#1F2937` | Low-emphasis surfaces |
-| `accent` | `#DCFCE7` | `#14532D` | Soft brand highlight (selected nav item, info callouts) |
+| `accent` | `#DCFCE7` | `#14532D` | Soft brand highlight (selected table rows, info callouts). Note: the sidebar's active nav item no longer uses this — it uses `primary` text + an edge indicator bar |
 | `border`, `input`, `ring` | `#E5E7EB` | `#374151` | Structure + focus |
 | `success` / `warning` / `danger` / `info` | `#16A34A` / `#F59E0B` / `#DC2626` / `#0EA5E9` | brighter variants | Status semantics, each with a `-soft` background variant for badges/alerts |
 | `sidebar*` | white-based | darker-than-card | The primary nav rail — intentionally distinct from `card` |
@@ -148,16 +148,24 @@ spacing value outside the named list.
 
 ### 4.4 Radius
 
-`rounded-xs` (4px) · `rounded-sm` (6px) · `rounded-md` (8px) · `rounded-lg`
-(12px, the default for cards/inputs/buttons) · `rounded-xl` (16px) ·
-`rounded-2xl` (20px) · `rounded-full`.
+**Every radius tier resolves to a flat 2px** — near-sharp corners are a
+deliberate brand decision. The tiered class names (`rounded-xs` …
+`rounded-2xl`) are all kept so no component code had to change; they simply
+all resolve to `2px` via the CSS variables. Do not "fix" this back to a
+graduated scale, and do not write `rounded-[N px]` arbitrary values.
+`rounded-full` (9999px) is the one exception and must stay — avatars,
+progress rings, switches, status dots, pills, and the sidebar's active
+indicator bar are circular/capsule by function.
 
 ### 4.5 Shadows
 
-`shadow-sm/md/lg` for general elevation, plus purpose-named
-`shadow-dropdown`, `shadow-popover`, `shadow-floating`, `shadow-modal`,
-`shadow-sidebar`. All are CSS variables so dark mode can redefine them as
-near-invisible instead of just "the same shadow, darker."
+Soft-UI elevation: wide, diffuse, low-opacity, green-cool-tinted shadows
+(never black, never hard-edged). `shadow-sm/md/lg` for general elevation,
+**`shadow-card`** for borderless surfaces floating on the canvas (Card,
+DataTable), plus purpose-named `shadow-dropdown`, `shadow-popover`,
+`shadow-floating`, `shadow-modal`, `shadow-sidebar` (now a soft right-cast
+glow, not a hairline). All are CSS variables so dark mode redefines them as
+near-invisible and leans on `border` for separation instead.
 
 ### 4.6 Motion
 
@@ -244,6 +252,15 @@ toast.success("Campaign published");
 (`SidebarProvider`/`Sidebar`/`SidebarNavItem`/`SidebarTrigger`, collapsible
 with per-item tooltips when collapsed), `TopNav`, `PageHeader`,
 `SectionHeader`, `CommandPalette` (+ `useCommandPalette()` ⌘K hook).
+
+**Sidebar visual contract:** a borderless white rail separated from the
+tinted canvas by `shadow-sidebar`. Nav items are 44px tall with a 20px icon;
+the **active item renders in `primary` with a thick capsule indicator bar
+hugging the sidebar's outer edge** — no filled pill background. Inactive
+items are `sidebar-foreground/60` and gain a soft `sidebar-accent` fill on
+hover. `TopNav` is 64px, borderless, and blends into the canvas via
+backdrop blur (dark mode restores hairline borders on both, since dark
+shadows are near-invisible).
 
 ### Data table
 `components/data-table/` — `DataTable<TData>` wraps `@tanstack/react-table`
@@ -347,7 +364,7 @@ const form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
 ## 8. Responsive strategy
 
 Breakpoints: `sm` 640px · `md` 768px · `lg` 1024px · `xl` 1280px · `2xl`
-1440px (see `tailwind.config.ts` `container.screens`). The rule is **adapt,
+1440px · `3xl` 1920px (see `tailwind.config.ts`). The rule is **adapt,
 don't shrink**:
 - `Sidebar` collapses to an icon rail (with tooltips) at `lg`, not a
   horizontally-squeezed sidebar.
@@ -359,6 +376,24 @@ don't shrink**:
 - `DataTable` wraps in a horizontally-scrolling container rather than
   trying to reflow columns — the correct behavior for dense tabular data
   on small screens.
+- **Multi-column form/detail grids must collapse on phones.** Never write a
+  bare `grid-cols-2`/`grid-cols-3`; always `grid grid-cols-1 gap-4
+  sm:grid-cols-2`. Two columns of inputs inside a drawer on a 360px screen
+  is a defect, not a layout.
+
+### Large displays (1920px and up)
+
+The root font-size scales at `≥1920px` (17px) and `≥2560px` (19px) — see
+`globals.css`. Because every type size, spacing token, and container
+max-width in the system is rem-based, this scales the **entire UI**
+proportionally, so 1440p/4K users get a comfortably sized interface instead
+of a small UI floating in whitespace they must browser-zoom to read.
+Implications:
+- Never use px for font sizes or component dimensions in new code — px
+  values opt out of large-display scaling.
+- The `3xl` Tailwind breakpoint (1920px) exists for layouts that should
+  *gain* columns or width on big monitors (dashboards, split views), on top
+  of the automatic proportional growth.
 
 ---
 

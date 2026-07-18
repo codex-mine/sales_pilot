@@ -185,7 +185,7 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <InfoRow icon={Building2} value={lead.company_name} />
-              <dl className="grid grid-cols-2 gap-3 text-body-sm">
+              <dl className="grid grid-cols-1 gap-3 text-body-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-caption text-muted-foreground">Industry</dt>
                   <dd className="text-foreground">{lead.industry || "—"}</dd>
@@ -210,7 +210,7 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
             <CardHeader>
               <CardTitle>Score & priority</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 text-body-sm">
+            <CardContent className="grid grid-cols-1 gap-3 text-body-sm sm:grid-cols-2">
               <div>
                 <dt className="text-caption text-muted-foreground">Lead score</dt>
                 <dd className="text-heading-6 font-semibold text-foreground">{lead.lead_score ?? "—"}</dd>

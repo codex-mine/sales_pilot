@@ -16,7 +16,9 @@ export function TopNav({ left, center, right, className }: TopNavProps): React.R
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card/80 px-4 backdrop-blur-sm sm:px-6",
+        // No hard border — the bar blends into the tinted canvas and only
+        // reads as chrome via the blur when content scrolls beneath it.
+        "sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 bg-background/80 px-4 backdrop-blur-sm sm:px-6 dark:border-b dark:border-border",
         className,
       )}
     >
