@@ -135,3 +135,39 @@ class LLMProviderError(AppError):
     status_code = 502
     error_code = "llm_provider_error"
     default_message = "The AI provider request failed."
+
+
+class AIOutputParsingError(AppError):
+    """Raised by `AIJobService.execute_job` when a job requests
+    `response_format="json"` and the model's output isn't valid JSON. Folded
+    into the same FAILED path as `LLMProviderError` so malformed structured
+    output never gets silently stored as if it were a successful result."""
+
+    status_code = 502
+    error_code = "ai_output_parsing_error"
+    default_message = "The AI provider returned output that could not be parsed."
+
+
+# ─── Email sending ─────────────────────────────────────────────────────────────
+
+class EmailSendError(AppError):
+    """Uniform wrapper for every sender-provider failure, mirroring
+    `LLMProviderError`'s role for LLM providers — raised only by
+    `app.services.email.sender_client` so the Email retry/failure path never
+    branches on provider-specific exception types."""
+
+    status_code = 502
+    error_code = "email_send_error"
+    default_message = "The email could not be sent."
+
+
+class RecipientSuppressedError(AppError):
+    """Raised when a synchronous send attempt targets a suppressed
+    recipient (unsubscribed, or a prior hard bounce to the same address in
+    this organization). The Email row is still marked FAILED with this
+    reason for outbox visibility — this exception exists so the triggering
+    HTTP request gets a distinct, actionable error instead of a generic 500."""
+
+    status_code = 400
+    error_code = "recipient_suppressed"
+    default_message = "This recipient has unsubscribed or previously bounced and cannot be emailed."

@@ -113,6 +113,28 @@ def decode_token(token: str, *, expected_type: str) -> dict[str, Any]:
     return payload
 
 
+def create_unsubscribe_token(lead_id: str, organization_id: str) -> str:
+    """One-click unsubscribe links must keep working indefinitely (a
+    recipient may click a months-old email), so unlike password-reset/
+    email-verification tokens this is long-lived and self-describing rather
+    than opaque+short-lived — a JWT is the right shape here, verified with
+    the existing `decode_token(..., expected_type="unsubscribe")` (no new
+    decode path, no new secret: reuses `jwt_secret_key` per the module's own
+    "reuse jwt_secret_key or a dedicated field" allowance)."""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": lead_id,
+        "organization_id": organization_id,
+        "type": "unsubscribe",
+        "iss": settings.jwt_issuer,
+        "iat": now,
+        "exp": now + timedelta(days=3650),
+        "jti": _new_jti(),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def create_opaque_token() -> str:
     return secrets.token_urlsafe(48)
 

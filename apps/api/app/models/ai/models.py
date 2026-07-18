@@ -232,7 +232,11 @@ class AIOutput(BaseModel):
     )
     output_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    content_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    content_json: Mapped[Optional[dict | list]] = mapped_column(
+        JSONB, nullable=True,
+        comment="Object for single-result outputs (research, analysis); array for "
+        "multi-variant outputs (email generation's 2-3 subject/body variants)."
+    )
     is_approved: Mapped[Optional[bool]] = mapped_column(
         Boolean, nullable=True,
         comment="NULL = pending review; True = approved; False = rejected"

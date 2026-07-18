@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import type { AIJobListItemResponse, AIJobResponse } from "@/features/ai/types";
 import type { ApiResponse } from "@/types/api";
 import type {
   BulkActionResponse,
@@ -9,6 +10,7 @@ import type {
   CompanyCreateRequest,
   CompanyEmployeeResponse,
   CompanyNoteResponse,
+  CompanyResearchResponse,
   CompanyResponse,
   CompanyTagResponse,
   CompanyUpdateRequest,
@@ -175,6 +177,44 @@ export async function deleteCompanyAttachment(companyId: string, attachmentId: s
   await apiClient.delete(`/companies/${companyId}/attachments/${attachmentId}`);
 }
 
+// ─── Research (AI -> Company Research) ───────────────────────────────────────────
+
+export async function triggerCompanyResearch(companyId: string, force = false): Promise<AIJobResponse> {
+  const { data } = await apiClient.post<ApiResponse<AIJobResponse>>(
+    `/companies/${companyId}/research`,
+    null,
+    { params: force ? { force: true } : undefined },
+  );
+  if (!data.data) throw new Error("Research trigger failed.");
+  return data.data;
+}
+
+export async function getCompanyResearch(
+  companyId: string,
+  signal?: AbortSignal,
+): Promise<CompanyResearchResponse | null> {
+  const { data } = await apiClient.get<ApiResponse<CompanyResearchResponse | null>>(
+    `/companies/${companyId}/research`,
+    { signal },
+  );
+  return data.data ?? null;
+}
+
+export async function getCompanyResearchHistory(
+  companyId: string,
+  page = 1,
+  pageSize = 25,
+): Promise<{ jobs: AIJobListItemResponse[]; meta: PaginationMeta }> {
+  const { data } = await apiClient.get<ApiResponse<AIJobListItemResponse[]>>(
+    `/companies/${companyId}/research/history`,
+    { params: { page, page_size: pageSize } },
+  );
+  return {
+    jobs: data.data ?? [],
+    meta: (data.meta as unknown as PaginationMeta) ?? { page: 1, page_size: pageSize, total: 0 },
+  };
+}
+
 // ─── Activities ─────────────────────────────────────────────────────────────────
 
 export async function getCompanyActivities(
@@ -214,4 +254,7 @@ export const companyService = {
   getCompanyAttachments,
   deleteCompanyAttachment,
   getCompanyActivities,
+  triggerCompanyResearch,
+  getCompanyResearch,
+  getCompanyResearchHistory,
 };

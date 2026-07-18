@@ -39,6 +39,7 @@ app/repositories/ai_output_repository.py
 app/repositories/attachment_repository.py
 app/repositories/audit_log_repository.py
 app/repositories/company_repository.py
+app/repositories/company_research_repository.py
 app/repositories/email_verification_repository.py
 app/repositories/integration_repository.py
 app/repositories/invitation_repository.py
@@ -47,6 +48,7 @@ app/repositories/note_repository.py
 app/repositories/organization_repository.py
 app/repositories/password_reset_repository.py
 app/repositories/prompt_repository.py
+app/repositories/prospect_analysis_repository.py
 app/repositories/refresh_token_repository.py
 app/repositories/role_repository.py
 app/repositories/session_repository.py
@@ -61,6 +63,8 @@ app/schemas/company_serializers.py
 app/schemas/lead_serializers.py
 app/schemas/leads.py
 app/schemas/organizations.py
+app/schemas/research.py
+app/schemas/research_serializers.py
 app/schemas/serializers.py
 app/security/crypto.py
 app/security/csrf.py
@@ -85,9 +89,11 @@ app/services/ai/__init__.py
 app/services/ai/ai_agent_service.py
 app/services/ai/ai_job_service.py
 app/services/ai/ai_settings_service.py
+app/services/ai/company_research_service.py
 app/services/ai/llm_client.py
 app/services/ai/pricing.py
 app/services/ai/prompt_service.py
+app/services/ai/prospect_analysis_service.py
 app/services/ai/system_prompts.py
 app/tests/conftest.py
 app/tests/test_ai.py
@@ -102,6 +108,8 @@ app/tests/test_rbac.py
 app/tests/test_session_and_refresh.py
 app/workers/ai_tasks.py
 app/workers/celery_app.py
+app/workers/research_tasks.py
+app/workers/session_utils.py
 salespilot_api.egg-info/PKG-INFO
 salespilot_api.egg-info/SOURCES.txt
 salespilot_api.egg-info/dependency_links.txt

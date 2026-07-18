@@ -10,10 +10,18 @@ from app.models.enums import LeadStatusEnum
 
 # The set of lead statuses this module's UI curates out of the full, broader
 # LeadStatusEnum (which also carries AI-outreach-pipeline-only states like
-# "researching" / "bounced" for a future automation module). Kept here, not
-# as a DB constraint, so it stays purely additive/display-layer.
+# "bounced" for a future automation module — module 08, Email Tracking, will
+# add it here once something in this codebase actually writes it). Kept
+# here, not as a DB constraint, so it stays purely additive/display-layer.
+# RESEARCHING / RESEARCH_DONE / EMAIL_GENERATED / UNSUBSCRIBED were reserved
+# above for the AI Research, Email Generation, and Email Sending modules —
+# each sets its status via the same validated LeadService.update() path, so
+# they're included here now that all three exist.
 LEAD_STATUS_CHOICES: list[str] = [
     LeadStatusEnum.NEW.value,
+    LeadStatusEnum.RESEARCHING.value,
+    LeadStatusEnum.RESEARCH_DONE.value,
+    LeadStatusEnum.EMAIL_GENERATED.value,
     LeadStatusEnum.CONTACTED.value,
     LeadStatusEnum.QUALIFIED.value,
     LeadStatusEnum.INTERESTED.value,
@@ -22,6 +30,7 @@ LEAD_STATUS_CHOICES: list[str] = [
     LeadStatusEnum.NEGOTIATION.value,
     LeadStatusEnum.WON.value,
     LeadStatusEnum.LOST.value,
+    LeadStatusEnum.UNSUBSCRIBED.value,
 ]
 
 LEAD_SOURCE_CHOICES: list[str] = [

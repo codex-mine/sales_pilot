@@ -112,6 +112,14 @@ class Email(BaseModel):
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Send failure tracking (Email Sending module). Additive columns: the
+    # outbox view needs to show *why* a send failed (suppressed recipient vs.
+    # a transient provider error) and how many attempts were made, mirroring
+    # AIJob.error_message/retry_count for the identical reason — without
+    # these, a FAILED row's reason is lost the moment the Celery task exits.
+    send_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    send_retry_count: Mapped[int] = mapped_column(Integer, default=0)
+
     # AI info
     ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
     personalization_data: Mapped[Optional[dict]] = mapped_column(

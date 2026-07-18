@@ -8,12 +8,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_permission
 from app.database.session import get_db
-from app.exceptions.errors import ValidationError
+from app.exceptions.errors import NotFoundError, ValidationError
+from app.models.enums import EmailTemplateTypeEnum, EmailToneEnum
 from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.lead_repository import LeadRepository
 from app.repositories.tag_repository import TagRepository
+from app.schemas.ai import AIJobResponse
+from app.schemas.ai_serializers import serialize_job
 from app.schemas.common import ApiResponse
+from app.schemas.email_generation import (
+    BulkEmailGenerationResponse,
+    BulkLeadEmailGenerationRequest,
+    EmailResponse,
+    GenerateEmailRequest,
+    RegenerateEmailRequest,
+)
+from app.schemas.email_sending import ScheduleEmailRequest
+from app.schemas.email_serializers import serialize_email
+from app.schemas.lead_serializers import (
+    serialize_activity,
+    serialize_attachment,
+    serialize_lead,
+    serialize_note,
+    serialize_tag,
+)
 from app.schemas.leads import (
     ActivityResponse,
     AttachmentResponse,
@@ -30,14 +49,17 @@ from app.schemas.leads import (
     NoteUpdateRequest,
     TagResponse,
 )
-from app.schemas.lead_serializers import (
-    serialize_activity,
-    serialize_attachment,
-    serialize_lead,
-    serialize_note,
-    serialize_tag,
+from app.schemas.research import (
+    BulkLeadResearchRequest,
+    BulkResearchResponse,
+    LeadResearchStatusResponse,
+    ProspectAnalysisResponse,
 )
+from app.schemas.research_serializers import serialize_prospect_analysis
+from app.services.ai.email_generation_service import EmailGenerationService
+from app.services.ai.prospect_analysis_service import ProspectAnalysisService
 from app.services.attachment_service import AttachmentService
+from app.services.email.email_sending_service import EmailSendingService
 from app.services.lead_import_export_service import LeadImportExportService
 from app.services.lead_service import LeadService
 from app.services.note_service import NoteService
@@ -268,6 +290,41 @@ async def bulk_leads(
     )
 
 
+@router.post("/bulk/research", response_model=ApiResponse[BulkResearchResponse])
+async def bulk_trigger_lead_research(
+    payload: BulkLeadResearchRequest,
+    user: User = Depends(require_permission("leads", "bulk")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[BulkResearchResponse]:
+    queued, errors = await ProspectAnalysisService(db).bulk_trigger_research(
+        user.organization_id, payload.lead_ids, actor=user
+    )
+    return ApiResponse(
+        data=BulkResearchResponse(
+            requested_count=len(payload.lead_ids), queued_count=queued, errors=errors
+        ),
+        message=f"Research queued for {queued} of {len(payload.lead_ids)} leads.",
+    )
+
+
+@router.post("/bulk/generate-emails", response_model=ApiResponse[BulkEmailGenerationResponse])
+async def bulk_generate_emails(
+    payload: BulkLeadEmailGenerationRequest,
+    user: User = Depends(require_permission("leads", "bulk")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[BulkEmailGenerationResponse]:
+    queued, errors = await EmailGenerationService(db).bulk_generate(
+        user.organization_id, payload.lead_ids, actor=user,
+        template_type=payload.template_type, tone=payload.tone, variant_count=payload.variant_count,
+    )
+    return ApiResponse(
+        data=BulkEmailGenerationResponse(
+            requested_count=len(payload.lead_ids), queued_count=queued, errors=errors
+        ),
+        message=f"Email generation queued for {queued} of {len(payload.lead_ids)} leads.",
+    )
+
+
 # ─── Lead CRUD by id ────────────────────────────────────────────────────────────
 
 
@@ -306,6 +363,174 @@ async def delete_lead(
     lead = await service.require_lead(lead_id, user.organization_id)
     await service.delete(lead, actor=user)
     return ApiResponse(message="Lead deleted.")
+
+
+# ─── Research (AI -> Prospect Analysis, combined "Research this Lead") ──────────
+
+
+async def _lead_research_status_response(
+    lead_id: uuid.UUID, organization_id: uuid.UUID, db: AsyncSession
+) -> LeadResearchStatusResponse:
+    service = ProspectAnalysisService(db)
+    lead = await service.require_lead(lead_id, organization_id)
+    company_job, prospect_job = await service.get_lead_research_status(organization_id, lead)
+    return LeadResearchStatusResponse(
+        lead_id=str(lead.id),
+        lead_status=lead.status,
+        company_job=serialize_job(company_job) if company_job else None,
+        prospect_job=serialize_job(prospect_job) if prospect_job else None,
+    )
+
+
+@router.post("/{lead_id}/research", response_model=ApiResponse[LeadResearchStatusResponse])
+async def trigger_lead_research(
+    lead_id: uuid.UUID,
+    force: bool = Query(default=False),
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[LeadResearchStatusResponse]:
+    service = ProspectAnalysisService(db)
+    await service.trigger_lead_research(user.organization_id, lead_id, actor=user, force=force)
+    return ApiResponse(
+        data=await _lead_research_status_response(lead_id, user.organization_id, db),
+        message="Lead research started.",
+    )
+
+
+@router.get("/{lead_id}/research", response_model=ApiResponse[LeadResearchStatusResponse])
+async def get_lead_research(
+    lead_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[LeadResearchStatusResponse]:
+    return ApiResponse(data=await _lead_research_status_response(lead_id, user.organization_id, db))
+
+
+@router.get(
+    "/{lead_id}/prospect-analysis", response_model=ApiResponse[ProspectAnalysisResponse | None]
+)
+async def get_prospect_analysis(
+    lead_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[ProspectAnalysisResponse | None]:
+    service = ProspectAnalysisService(db)
+    await service.require_lead(lead_id, user.organization_id)
+    analysis = await service.analyses.get_by_lead(lead_id, user.organization_id)
+    return ApiResponse(data=serialize_prospect_analysis(analysis) if analysis else None)
+
+
+# ─── Email Generation (AI -> Personalized Email + Human Review) ─────────────────
+
+
+@router.post("/{lead_id}/emails/generate", response_model=ApiResponse[AIJobResponse])
+async def generate_lead_email(
+    lead_id: uuid.UUID,
+    payload: GenerateEmailRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AIJobResponse]:
+    job = await EmailGenerationService(db).generate_email(
+        user.organization_id, lead_id, actor=user,
+        template_type=payload.template_type, tone=payload.tone,
+        variant_count=payload.variant_count, custom_instruction=payload.custom_instruction,
+    )
+    return ApiResponse(data=serialize_job(job), message="Email generation started.")
+
+
+@router.get("/{lead_id}/emails/drafts", response_model=ApiResponse[list[EmailResponse]])
+async def list_lead_email_drafts(
+    lead_id: uuid.UUID,
+    status_filter: str | None = Query(default=None, alias="status"),
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[EmailResponse]]:
+    """Despite the URL (kept for the Email Generation module's contract),
+    this returns every Email for the lead by default, not just DRAFT-status
+    ones — the Outreach tab needs a scheduled/sent email to stay visible
+    after Send, not disappear the moment it leaves DRAFT. Pass `?status=draft`
+    to filter, same as before."""
+    service = EmailGenerationService(db)
+    await service.require_lead(lead_id, user.organization_id)
+    emails = await service.emails.list_for_lead(lead_id, user.organization_id, status=status_filter)
+    return ApiResponse(data=[serialize_email(e) for e in emails])
+
+
+@router.post("/{lead_id}/emails/regenerate", response_model=ApiResponse[AIJobResponse])
+async def regenerate_lead_email(
+    lead_id: uuid.UUID,
+    payload: RegenerateEmailRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AIJobResponse]:
+    service = EmailGenerationService(db)
+    lead = await service.require_lead(lead_id, user.organization_id)
+    source_output = await service.ai_outputs.get_by_id(payload.source_output_id, user.organization_id)
+    if source_output is None:
+        raise NotFoundError("Prior email variant not found.")
+    source_job = await service.ai_jobs.get_by_id(source_output.job_id, user.organization_id)
+    source_variables = (source_job.input_data or {}).get("variables", {}) if source_job else {}
+    template_type = payload.template_type or EmailTemplateTypeEnum(
+        source_variables.get("template_type", EmailTemplateTypeEnum.COLD_OUTREACH.value)
+    )
+    tone = payload.tone or EmailToneEnum(source_variables.get("tone", EmailToneEnum.PROFESSIONAL.value))
+    job = await service.generate_email(
+        user.organization_id, lead.id, actor=user, template_type=template_type, tone=tone,
+        variant_count=payload.variant_count, custom_instruction=payload.custom_instruction,
+        regenerate_from_output_id=payload.source_output_id,
+    )
+    return ApiResponse(data=serialize_job(job), message="Regeneration started.")
+
+
+# ─── Email Sending (Communication -> Send Draft Email) ───────────────────────────
+
+
+@router.post("/{lead_id}/emails/{email_id}/send", response_model=ApiResponse[EmailResponse])
+async def send_lead_email(
+    lead_id: uuid.UUID,
+    email_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailResponse]:
+    service = EmailSendingService(db)
+    email = await service.require_email(email_id, user.organization_id)
+    if email.lead_id != lead_id:
+        raise NotFoundError("Email not found.")
+    email = await service.send_now(user.organization_id, email_id, actor=user)
+    return ApiResponse(data=serialize_email(email), message="Email sent.")
+
+
+@router.post("/{lead_id}/emails/{email_id}/schedule", response_model=ApiResponse[EmailResponse])
+async def schedule_lead_email(
+    lead_id: uuid.UUID,
+    email_id: uuid.UUID,
+    payload: ScheduleEmailRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailResponse]:
+    service = EmailSendingService(db)
+    email = await service.require_email(email_id, user.organization_id)
+    if email.lead_id != lead_id:
+        raise NotFoundError("Email not found.")
+    email = await service.schedule_send(
+        user.organization_id, email_id, scheduled_at=payload.scheduled_at, actor=user
+    )
+    return ApiResponse(data=serialize_email(email), message="Email scheduled.")
+
+
+@router.post("/{lead_id}/emails/{email_id}/cancel", response_model=ApiResponse[EmailResponse])
+async def cancel_lead_email(
+    lead_id: uuid.UUID,
+    email_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailResponse]:
+    service = EmailSendingService(db)
+    email = await service.require_email(email_id, user.organization_id)
+    if email.lead_id != lead_id:
+        raise NotFoundError("Email not found.")
+    email = await service.cancel_scheduled(user.organization_id, email_id, actor=user)
+    return ApiResponse(data=serialize_email(email), message="Scheduled send cancelled.")
 
 
 # ─── Notes ──────────────────────────────────────────────────────────────────────

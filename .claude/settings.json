@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m alembic heads)",
+      "Bash(.venv/Scripts/python.exe -m alembic history)",
+      "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_email_sending.py -q)",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d ai_sales_agent_test -c \"ALTER TABLE emails ADD COLUMN IF NOT EXISTS send_error TEXT; ALTER TABLE emails ADD COLUMN IF NOT EXISTS send_retry_count INTEGER NOT NULL DEFAULT 0;\")",
+      "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_research.py app/tests/test_email_generation.py app/tests/test_companies.py app/tests/test_leads.py app/tests/test_rbac.py app/tests/test_organizations.py -q)"
+    ]
+  }
+}

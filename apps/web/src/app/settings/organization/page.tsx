@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionGuard } from "@/components/guards";
+import { EmailSenderSettingsPanel } from "@/features/email-sender/components/email-sender-settings-panel";
 import { EditOrganizationDrawer } from "@/features/organizations/components/edit-organization-drawer";
 import { InvitationList } from "@/features/organizations/components/invitation-list";
 import { MembersTable } from "@/features/organizations/components/members-table";
@@ -99,6 +100,9 @@ export default function OrganizationSettingsPage(): React.ReactElement {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <PermissionGuard permission="campaigns.manage" fallback={<></>}>
+            <TabsTrigger value="email-sender">Email Sender</TabsTrigger>
+          </PermissionGuard>
           <PermissionGuard permission="organizations.delete" fallback={<></>}>
             <TabsTrigger value="danger">Danger zone</TabsTrigger>
           </PermissionGuard>
@@ -185,6 +189,12 @@ export default function OrganizationSettingsPage(): React.ReactElement {
             </Card>
           </div>
         </TabsContent>
+
+        <PermissionGuard permission="campaigns.manage" fallback={<></>}>
+          <TabsContent value="email-sender">
+            <EmailSenderSettingsPanel />
+          </TabsContent>
+        </PermissionGuard>
 
         <PermissionGuard permission="organizations.delete" fallback={<></>}>
           <TabsContent value="danger">

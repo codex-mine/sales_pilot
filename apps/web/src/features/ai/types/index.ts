@@ -86,7 +86,7 @@ export interface AIOutputResponse {
   job_id: string;
   output_type: string;
   content_text: string | null;
-  content_json: Record<string, unknown> | null;
+  content_json: Record<string, unknown> | unknown[] | null;
   is_approved: boolean | null;
   approved_by: string | null;
   approved_at: string | null;
