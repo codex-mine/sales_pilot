@@ -37,7 +37,7 @@ export function DataTableToolbar<TData>({
 
   return (
     <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-1 items-center gap-2">
+      <div className="flex flex-1 flex-wrap items-center gap-2">
         <SearchInput
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
@@ -47,7 +47,7 @@ export function DataTableToolbar<TData>({
         />
         {filters}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {selectedCount > 0 && bulkActions && (
           <div className="flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-body-sm font-medium text-accent-foreground">
             {selectedCount} selected

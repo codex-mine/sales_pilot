@@ -136,7 +136,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-1 flex-col gap-4 overflow-y-auto"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -165,7 +165,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="email"
@@ -194,7 +194,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="status"
@@ -276,7 +276,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="linkedin_url"
@@ -304,7 +304,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="facebook_url"
@@ -333,7 +333,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="industry"
@@ -372,7 +372,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
                 )}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="founded_year"
@@ -414,7 +414,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="city"
@@ -455,7 +455,7 @@ export function CompanyFormDrawer({ open, onOpenChange, company }: CompanyFormDr
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="address_line1"

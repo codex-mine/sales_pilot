@@ -122,3 +122,16 @@ class RateLimitExceededError(AppError):
     status_code = 429
     error_code = "rate_limit_exceeded"
     default_message = "Too many requests. Please try again later."
+
+
+# ─── AI / LLM providers ────────────────────────────────────────────────────────
+
+class LLMProviderError(AppError):
+    """Uniform wrapper for every provider-SDK failure (rate limits, auth,
+    timeouts, malformed responses). Raised only by `app.services.ai.llm_client`
+    so the AIJob failure path never has to branch on provider-specific
+    exception types."""
+
+    status_code = 502
+    error_code = "llm_provider_error"
+    default_message = "The AI provider request failed."

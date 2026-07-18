@@ -163,7 +163,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-1 flex-col gap-4 overflow-y-auto"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="first_name"
@@ -191,7 +191,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="email"
@@ -219,7 +219,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="job_title"
@@ -248,7 +248,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="status"
@@ -341,7 +341,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="priority"
@@ -383,7 +383,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="linkedin_url"
@@ -412,7 +412,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="industry"
@@ -451,7 +451,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="revenue"
@@ -480,7 +480,7 @@ export function LeadFormDrawer({ open, onOpenChange, lead }: LeadFormDrawerProps
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="city"

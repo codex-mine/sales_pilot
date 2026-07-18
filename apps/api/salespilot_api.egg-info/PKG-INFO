@@ -6,14 +6,26 @@ Requires-Dist: fastapi>=0.115
 Requires-Dist: uvicorn[standard]>=0.30
 Requires-Dist: sqlalchemy[asyncio]>=2.0
 Requires-Dist: asyncpg>=0.29
+Requires-Dist: psycopg[binary]>=3.1
 Requires-Dist: alembic>=1.13
 Requires-Dist: pydantic-settings>=2.4
 Requires-Dist: python-jose[cryptography]>=3.3
 Requires-Dist: passlib[bcrypt]>=1.7
+Requires-Dist: bcrypt<4.1
 Requires-Dist: email-validator>=2.2
 Requires-Dist: structlog>=24.4
-Requires-Dist: redis>=5.0
+Requires-Dist: redis<6.0,>=5.0
 Requires-Dist: celery>=5.4
+Requires-Dist: user-agents>=2.2
+Requires-Dist: python-multipart>=0.0.9
+Requires-Dist: Pillow>=10.4
+Requires-Dist: jinja2>=3.1
+Requires-Dist: cryptography>=42.0
+Requires-Dist: openai>=1.40
+Requires-Dist: anthropic>=0.34
+Requires-Dist: groq>=0.11
+Requires-Dist: google-genai>=1.0
+Requires-Dist: ollama>=0.4
 Provides-Extra: dev
 Requires-Dist: pytest>=8.3; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23; extra == "dev"

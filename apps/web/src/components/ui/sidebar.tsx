@@ -59,7 +59,10 @@ export function Sidebar({ className, children }: { className?: string; children:
       animate={{ width: isDesktop ? (isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH) : EXPANDED_WIDTH }}
       transition={{ duration: duration.normal, ease: easing.standard }}
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sidebar",
+        // Borderless rail: the soft `shadow-sidebar` plus the tinted canvas
+        // separates it from content (dark mode keeps a hairline border since
+        // its shadows are near-invisible).
+        "sticky top-0 z-40 flex h-screen shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground shadow-sidebar dark:border-r dark:border-sidebar-border",
         !isDesktop && "hidden",
         className,
       )}
@@ -71,22 +74,22 @@ export function Sidebar({ className, children }: { className?: string; children:
 
 export function SidebarHeader({ className, children }: { className?: string; children: ReactNode }): React.ReactElement {
   return (
-    <div className={cn("flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-4", className)}>
+    <div className={cn("flex h-16 shrink-0 items-center gap-2 px-6", className)}>
       {children}
     </div>
   );
 }
 
 export function SidebarContent({ className, children }: { className?: string; children: ReactNode }): React.ReactElement {
-  return <div className={cn("flex-1 overflow-y-auto px-3 py-4", className)}>{children}</div>;
+  return <div className={cn("flex-1 overflow-y-auto px-4 py-6", className)}>{children}</div>;
 }
 
 export function SidebarFooter({ className, children }: { className?: string; children: ReactNode }): React.ReactElement {
-  return <div className={cn("shrink-0 border-t border-sidebar-border p-3", className)}>{children}</div>;
+  return <div className={cn("shrink-0 border-t border-sidebar-border p-4", className)}>{children}</div>;
 }
 
 export function SidebarNav({ className, children }: { className?: string; children: ReactNode }): React.ReactElement {
-  return <nav className={cn("flex flex-col gap-1", className)}>{children}</nav>;
+  return <nav className={cn("flex flex-col gap-2", className)}>{children}</nav>;
 }
 
 export function SidebarNavGroup({ className, children }: { className?: string; children: ReactNode }): React.ReactElement {
@@ -133,20 +136,30 @@ export function SidebarNavItem({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "group flex h-9 items-center gap-3 rounded-md px-3 text-body-sm font-medium transition-colors duration-fast ease-standard",
+        // Active state matches the reference chrome: brand-colored icon +
+        // label with a thick indicator bar hugging the sidebar's outer edge
+        // (the `-right-4` cancels SidebarContent's px-4 inset) — no filled
+        // pill background.
+        "group relative flex h-11 items-center gap-3 rounded-md px-3 text-body-md font-medium transition-colors duration-fast ease-standard",
         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
         isActive
-          ? "bg-accent text-accent-foreground"
-          : "text-sidebar-foreground/70",
+          ? "font-semibold text-primary hover:bg-transparent hover:text-primary"
+          : "text-sidebar-foreground/60",
         isCollapsed && "justify-center px-0",
         className,
       )}
       {...props}
     >
-      <Icon className="size-4 shrink-0" />
+      <Icon className="size-5 shrink-0" />
       {!isCollapsed && <span className="flex-1 truncate">{label}</span>}
       {!isCollapsed && badge}
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className="absolute -right-4 top-1/2 h-8 w-1 -translate-y-1/2 rounded-l-full bg-primary"
+        />
+      )}
     </Comp>
   );
 

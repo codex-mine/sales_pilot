@@ -2,23 +2,30 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef, type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-lg border border-border bg-card text-card-foreground", {
-  variants: {
-    padding: {
-      none: "",
-      sm: "p-4",
-      md: "p-6",
-      lg: "p-8",
+// Light mode: borderless card floating on the tinted canvas via the soft
+// `shadow-card` token. Dark mode: separation comes from the border instead
+// (shadows are near-invisible there by design) — same approach as the
+// sidebar and popovers.
+const cardVariants = cva(
+  "rounded-lg border border-transparent bg-card text-card-foreground shadow-card dark:border-border",
+  {
+    variants: {
+      padding: {
+        none: "",
+        sm: "p-4",
+        md: "p-6",
+        lg: "p-8",
+      },
+      interactive: {
+        true: "cursor-pointer transition-shadow duration-fast ease-standard hover:shadow-lg",
+      },
+      elevated: {
+        true: "shadow-lg",
+      },
     },
-    interactive: {
-      true: "cursor-pointer transition-shadow duration-fast ease-standard hover:shadow-md",
-    },
-    elevated: {
-      true: "shadow-sm",
-    },
+    defaultVariants: { padding: "md" },
   },
-  defaultVariants: { padding: "md" },
-});
+);
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
 

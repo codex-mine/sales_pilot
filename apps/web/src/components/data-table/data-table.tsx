@@ -113,7 +113,12 @@ export function DataTable<TData, TValue>({
   const visibleColumnCount = table.getVisibleFlatColumns().length;
 
   return (
-    <div className={cn("flex flex-col rounded-lg border border-border bg-card", className)}>
+    <div
+      className={cn(
+        "flex flex-col rounded-lg border border-transparent bg-card shadow-card dark:border-border",
+        className,
+      )}
+    >
       <DataTableToolbar
         table={table}
         searchValue={globalFilter}

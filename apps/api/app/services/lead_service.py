@@ -11,9 +11,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.utils import json_safe as _json_safe
 from app.exceptions.errors import NotFoundError, ValidationError
 from app.models.crm.models import Lead
-from app.models.enums import AuditActionEnum, ActivityTypeEnum
+from app.models.enums import ActivityTypeEnum, AuditActionEnum
 from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.audit_log_repository import AuditLogRepository
@@ -21,19 +22,6 @@ from app.repositories.lead_repository import LeadRepository
 from app.repositories.tag_repository import TagRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.leads import BulkLeadActionRequest, LeadCreateRequest, LeadUpdateRequest
-
-
-def _json_safe(value: Any) -> Any:
-    """Audit log `changes` is stored as JSONB — UUIDs (e.g. owner_id) aren't
-    natively JSON-serializable, so stringify anything that isn't already a
-    plain JSON-compatible type before it reaches the DB driver."""
-    if isinstance(value, uuid.UUID):
-        return str(value)
-    if isinstance(value, dict):
-        return {k: _json_safe(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_json_safe(v) for v in value]
-    return value
 
 
 class LeadService:
