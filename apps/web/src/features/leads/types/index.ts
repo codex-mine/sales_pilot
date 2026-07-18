@@ -1,13 +1,21 @@
+import type { AIJobResponse } from "@/features/ai/types";
+
 // Mirrors the backend's app/schemas/leads.py exactly (snake_case, same field names).
 
+// RESEARCHING / RESEARCH_DONE / EMAIL_GENERATED were reserved on the backend
+// LeadStatusEnum for the AI Research and Email Generation modules — now that
+// both exist, they're included here too.
 export const LEAD_STATUS_CHOICES = [
-  "new", "contacted", "qualified", "interested", "demo_scheduled",
-  "proposal", "negotiation", "won", "lost",
+  "new", "researching", "research_done", "email_generated", "contacted", "qualified", "interested",
+  "demo_scheduled", "proposal", "negotiation", "won", "lost",
 ] as const;
 export type LeadStatus = (typeof LEAD_STATUS_CHOICES)[number];
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
+  researching: "Researching",
+  research_done: "Research Complete",
+  email_generated: "Email Generated",
   contacted: "Contacted",
   qualified: "Qualified",
   interested: "Interested",
@@ -195,6 +203,201 @@ export interface ActivityResponse {
   summary: string | null;
   metadata: Record<string, unknown> | null;
   occurred_at: string;
+}
+
+// ─── Research (AI -> Prospect Analysis) ─────────────────────────────────────────
+
+export const BUYING_INTENT_CHOICES = ["high", "medium", "low"] as const;
+export type BuyingIntent = (typeof BUYING_INTENT_CHOICES)[number];
+
+export const BUYING_INTENT_LABELS: Record<BuyingIntent, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+export const DECISION_AUTHORITY_CHOICES = ["decision_maker", "influencer", "evaluator", "end_user"] as const;
+export type DecisionAuthority = (typeof DECISION_AUTHORITY_CHOICES)[number];
+
+export const DECISION_AUTHORITY_LABELS: Record<DecisionAuthority, string> = {
+  decision_maker: "Decision Maker",
+  influencer: "Influencer",
+  evaluator: "Evaluator",
+  end_user: "End User",
+};
+
+export interface ProspectAnalysisResponse {
+  id: string;
+  lead_id: string;
+  ai_job_id: string | null;
+  buying_intent: BuyingIntent | null;
+  priority_score: number | null;
+  recommended_approach: string | null;
+  value_proposition: string | null;
+  predicted_objections: string[] | null;
+  likely_goals: string[] | null;
+  decision_authority: DecisionAuthority | null;
+  best_contact_time: string | null;
+  analysed_at: string;
+}
+
+export interface LeadResearchStatusResponse {
+  lead_id: string;
+  lead_status: string;
+  company_job: AIJobResponse | null;
+  prospect_job: AIJobResponse | null;
+}
+
+export interface BulkLeadResearchRequest {
+  lead_ids: string[];
+}
+
+export interface BulkResearchResponse {
+  requested_count: number;
+  queued_count: number;
+  errors: string[];
+}
+
+// ─── Email Generation (AI -> Personalized Email + Human Review) ────────────────
+
+export const EMAIL_TONE_CHOICES = ["friendly", "professional", "technical", "executive", "casual"] as const;
+export type EmailTone = (typeof EMAIL_TONE_CHOICES)[number];
+
+export const EMAIL_TONE_LABELS: Record<EmailTone, string> = {
+  friendly: "Friendly",
+  professional: "Professional",
+  technical: "Technical",
+  executive: "Executive",
+  casual: "Casual",
+};
+
+export const EMAIL_TEMPLATE_TYPE_CHOICES = [
+  "cold_outreach", "follow_up", "break_up", "linkedin", "meeting_request", "proposal", "custom",
+] as const;
+export type EmailTemplateType = (typeof EMAIL_TEMPLATE_TYPE_CHOICES)[number];
+
+export const EMAIL_TEMPLATE_TYPE_LABELS: Record<EmailTemplateType, string> = {
+  cold_outreach: "Cold Outreach",
+  follow_up: "Follow Up",
+  break_up: "Break Up",
+  linkedin: "LinkedIn",
+  meeting_request: "Meeting Request",
+  proposal: "Proposal",
+  custom: "Custom",
+};
+
+/** Shape of an `AIOutput.content_json` row where `output_type ===
+ * "email_variant"` — one generated subject/body/reasoning candidate,
+ * individually approvable. Matches `EmailGenerationService.finalize()`. */
+export interface EmailVariantContent {
+  subject: string;
+  body_html: string;
+  body_text?: string | null;
+  reasoning?: string | null;
+  template_type?: string;
+  tone?: string;
+}
+
+export interface EmailResponse {
+  id: string;
+  lead_id: string;
+  from_email: string;
+  from_name: string | null;
+  to_email: string;
+  to_name: string | null;
+  subject: string;
+  body_html: string;
+  body_text: string | null;
+  current_status: string;
+  ai_generated: boolean;
+  personalization_data: Record<string, unknown> | null;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface GenerateEmailRequest {
+  template_type: EmailTemplateType;
+  tone: EmailTone;
+  variant_count?: number;
+  custom_instruction?: string;
+}
+
+export interface RegenerateEmailRequest {
+  source_output_id: string;
+  custom_instruction: string;
+  template_type?: EmailTemplateType;
+  tone?: EmailTone;
+  variant_count?: number;
+}
+
+export interface ApproveEmailVariantRequest {
+  edited_subject?: string;
+  edited_body_html?: string;
+  edited_body_text?: string;
+  save_as_template?: boolean;
+  template_name?: string;
+  from_email: string;
+  from_name?: string;
+}
+
+export interface BulkLeadEmailGenerationRequest {
+  lead_ids: string[];
+  template_type: EmailTemplateType;
+  tone: EmailTone;
+  variant_count?: number;
+}
+
+export interface BulkEmailGenerationResponse {
+  requested_count: number;
+  queued_count: number;
+  errors: string[];
+}
+
+// ─── Email Sending (Communication -> Send Draft Email) ──────────────────────────
+
+export interface ScheduleEmailRequest {
+  scheduled_at: string;
+}
+
+export interface EmailPreviewResponse {
+  subject: string;
+  body_html: string;
+  body_text: string | null;
+  to_email: string;
+  to_name: string | null;
+  from_email: string;
+  from_name: string | null;
+}
+
+export interface OutboxEmailResponse {
+  id: string;
+  lead_id: string;
+  lead_full_name: string | null;
+  lead_company_name: string | null;
+  from_email: string;
+  from_name: string | null;
+  to_email: string;
+  to_name: string | null;
+  subject: string;
+  current_status: string;
+  ai_generated: boolean;
+  send_error: string | null;
+  send_retry_count: number;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface BulkSendRequest {
+  lead_ids: string[];
+}
+
+export interface BulkSendResponse {
+  requested_count: number;
+  success_count: number;
+  failed_count: number;
+  errors: string[];
 }
 
 export type BulkActionType =

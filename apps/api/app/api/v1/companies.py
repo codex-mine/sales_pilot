@@ -9,8 +9,11 @@ from app.auth.dependencies import require_permission
 from app.database.session import get_db
 from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
+from app.repositories.ai_job_repository import AIJobRepository
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.tag_repository import TagRepository
+from app.schemas.ai import AIJobListItemResponse, AIJobResponse
+from app.schemas.ai_serializers import serialize_job, serialize_job_list_item
 from app.schemas.common import ApiResponse
 from app.schemas.companies import (
     BulkActionError,
@@ -34,7 +37,10 @@ from app.schemas.company_serializers import (
     serialize_company_tag,
     serialize_employee,
 )
+from app.schemas.research import CompanyResearchResponse
+from app.schemas.research_serializers import serialize_company_research
 from app.services.attachment_service import AttachmentService
+from app.services.ai.company_research_service import CompanyResearchService
 from app.services.company_service import CompanyService
 from app.services.note_service import NoteService
 
@@ -317,6 +323,59 @@ async def list_company_employees(
     )
     return ApiResponse(
         data=[serialize_employee(e) for e in employees],
+        meta={"page": page, "page_size": page_size, "total": total},
+    )
+
+
+# ─── Research (AI -> Company Research) ───────────────────────────────────────────
+
+
+@router.post("/{company_id}/research", response_model=ApiResponse[AIJobResponse])
+async def trigger_company_research(
+    company_id: uuid.UUID,
+    force: bool = Query(default=False),
+    user: User = Depends(require_permission("companies", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AIJobResponse]:
+    job = await CompanyResearchService(db).trigger_research(
+        user.organization_id, company_id, actor=user, force=force
+    )
+    return ApiResponse(data=serialize_job(job), message="Company research started.")
+
+
+@router.get("/{company_id}/research", response_model=ApiResponse[CompanyResearchResponse | None])
+async def get_company_research(
+    company_id: uuid.UUID,
+    user: User = Depends(require_permission("companies", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[CompanyResearchResponse | None]:
+    service = CompanyResearchService(db)
+    await service.require_company(company_id, user.organization_id)
+    research = await service.research_repo.get_by_company(company_id, user.organization_id)
+    return ApiResponse(data=serialize_company_research(research) if research else None)
+
+
+@router.get(
+    "/{company_id}/research/history", response_model=ApiResponse[list[AIJobListItemResponse]]
+)
+async def list_company_research_history(
+    company_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=200),
+    user: User = Depends(require_permission("companies", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[AIJobListItemResponse]]:
+    await CompanyService(db).require_company(company_id, user.organization_id)
+    jobs, total = await AIJobRepository(db).list_for_organization(
+        user.organization_id,
+        job_type=["research_company"],
+        entity_type="company",
+        entity_id=company_id,
+        page=page,
+        page_size=page_size,
+    )
+    return ApiResponse(
+        data=[serialize_job_list_item(j) for j in jobs],
         meta={"page": page, "page_size": page_size, "total": total},
     )
 

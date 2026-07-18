@@ -29,7 +29,7 @@ class AIOutputRepository:
         organization_id: uuid.UUID,
         output_type: str,
         content_text: str | None = None,
-        content_json: dict | None = None,
+        content_json: dict | list | None = None,
         quality_score: float | None = None,
     ) -> AIOutput:
         output = AIOutput(

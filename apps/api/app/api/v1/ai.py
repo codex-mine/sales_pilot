@@ -38,9 +38,12 @@ from app.schemas.ai_serializers import (
     serialize_version,
 )
 from app.schemas.common import ApiResponse
+from app.schemas.email_generation import ApproveEmailVariantRequest, EmailResponse
+from app.schemas.email_serializers import serialize_email
 from app.services.ai.ai_agent_service import AIAgentService
 from app.services.ai.ai_job_service import AIJobService
 from app.services.ai.ai_settings_service import AISettingsService
+from app.services.ai.email_generation_service import EmailGenerationService
 from app.services.ai.prompt_service import PromptService
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -221,6 +224,41 @@ async def reject_output(
     output = await service.require_output(output_id, user.organization_id)
     output = await service.set_output_approval(output, approved=False, actor=user)
     return ApiResponse(data=serialize_output(output), message="Output rejected.")
+
+
+# ─── Email variant approval (Email Generation module) ──────────────────────────
+# Specializations of the generic output approve/reject above: approving an
+# email variant creates a DRAFT Email row (a side effect generic approval
+# doesn't have), and both are gated by `leads.update` rather than `ai.manage`
+# so a Sales rep reviewing their own lead's drafts doesn't need AI
+# configuration access — the same reasoning the Research module's
+# lead-scoped actions already follow.
+
+
+@router.post("/outputs/{output_id}/approve-email", response_model=ApiResponse[EmailResponse])
+async def approve_email_variant(
+    output_id: uuid.UUID,
+    payload: ApproveEmailVariantRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailResponse]:
+    email = await EmailGenerationService(db).approve_variant(
+        user.organization_id, output_id, actor=user,
+        edited_subject=payload.edited_subject, edited_body_html=payload.edited_body_html,
+        edited_body_text=payload.edited_body_text, save_as_template=payload.save_as_template,
+        template_name=payload.template_name, from_email=payload.from_email, from_name=payload.from_name,
+    )
+    return ApiResponse(data=serialize_email(email), message="Email approved as a draft.")
+
+
+@router.post("/outputs/{output_id}/reject-email", response_model=ApiResponse[AIOutputResponse])
+async def reject_email_variant(
+    output_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AIOutputResponse]:
+    output = await EmailGenerationService(db).reject_variant(user.organization_id, output_id, actor=user)
+    return ApiResponse(data=serialize_output(output), message="Email variant rejected.")
 
 
 # ─── Prompt templates / versions ───────────────────────────────────────────────

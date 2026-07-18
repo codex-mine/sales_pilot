@@ -10,13 +10,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { IconButton } from "@/components/ui/icon-button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Archive, ArchiveRestore, Eye, Pencil, Star, Trash2 } from "@/icons";
+import { Archive, ArchiveRestore, Eye, Pencil, Sparkles, Star, Trash2 } from "@/icons";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
 import { LEAD_STATUS_LABELS, type LeadResponse, type LeadStatus } from "../types";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" | "info" | "primary"> = {
   new: "info",
+  researching: "info",
+  research_done: "primary",
   contacted: "primary",
   qualified: "primary",
   interested: "primary",
@@ -32,6 +34,7 @@ export interface LeadsTableActions {
   onToggleArchived: (lead: LeadResponse) => void;
   onEdit: (lead: LeadResponse) => void;
   onDelete: (lead: LeadResponse) => void;
+  onResearch: (lead: LeadResponse) => void;
 }
 
 export function buildLeadsTableColumns(actions: LeadsTableActions): ColumnDef<LeadResponse>[] {
@@ -116,7 +119,7 @@ export function buildLeadsTableColumns(actions: LeadsTableActions): ColumnDef<Le
       cell: ({ row }) => {
         const status = row.original.status as LeadStatus;
         return (
-          <StatusBadge tone={STATUS_TONE[status] ?? "neutral"}>
+          <StatusBadge tone={STATUS_TONE[status] ?? "neutral"} pulse={status === "researching"}>
             {LEAD_STATUS_LABELS[status] ?? status}
           </StatusBadge>
         );
@@ -191,6 +194,10 @@ export function buildLeadsTableColumns(actions: LeadsTableActions): ColumnDef<Le
             <DropdownMenuItem onSelect={() => actions.onEdit(lead)}>
               <Pencil className="size-4" />
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => actions.onResearch(lead)}>
+              <Sparkles className="size-4" />
+              Research
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => actions.onToggleArchived(lead)}>

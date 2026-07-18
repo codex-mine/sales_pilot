@@ -178,6 +178,32 @@ export interface CompanyEmployeeResponse {
   created_at: string;
 }
 
+// ─── Research (AI -> Company Research) ──────────────────────────────────────────
+
+export const DATA_QUALITY_CHOICES = ["web_enriched", "llm_knowledge_only"] as const;
+export type DataQuality = (typeof DATA_QUALITY_CHOICES)[number];
+
+export interface CompanyResearchResponse {
+  id: string;
+  company_id: string;
+  ai_job_id: string | null;
+  summary: string | null;
+  products_services: string[] | null;
+  target_customers: string | null;
+  business_model: string | null;
+  technologies: string[] | null;
+  competitors: string[] | null;
+  recent_news: string[] | null;
+  pain_points: string[] | null;
+  sales_opportunities: string[] | null;
+  estimated_revenue: string | null;
+  funding_stage: string | null;
+  growth_signals: string[] | null;
+  data_quality: DataQuality;
+  researched_at: string;
+  is_stale: boolean;
+}
+
 export type BulkCompanyActionType =
   | "delete" | "archive" | "restore" | "assign_owner" | "change_status" | "add_tags" | "remove_tags";
 

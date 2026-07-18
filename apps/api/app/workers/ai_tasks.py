@@ -15,20 +15,9 @@ FAILED — the failure is never silently swallowed.
 import asyncio
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.core.config import get_settings
 from app.workers.celery_app import celery_app
-
-
-async def _run_with_fresh_session(coro_factory) -> None:
-    engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
-    session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    try:
-        async with session_factory() as session:
-            await coro_factory(session)
-    finally:
-        await engine.dispose()
+from app.workers.session_utils import run_with_fresh_session as _run_with_fresh_session
 
 
 @celery_app.task(

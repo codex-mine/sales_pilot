@@ -396,6 +396,7 @@ class IntegrationTypeEnum(str, enum.Enum):
     OUTLOOK_CALENDAR = "outlook_calendar"
     GMAIL = "gmail"
     OUTLOOK_EMAIL = "outlook_email"
+    SMTP = "smtp"
     SLACK = "slack"
     HUBSPOT = "hubspot"
     SALESFORCE = "salesforce"

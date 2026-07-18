@@ -88,6 +88,7 @@ export {
   Mail,
   MailWarning,
   MailCheck,
+  MailX,
   Phone,
   MessageSquare,
   MessagesSquare,

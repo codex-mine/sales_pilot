@@ -87,8 +87,8 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     ollama_base_url: str | None = None
 
-    ai_default_provider: str = "anthropic"
-    ai_default_model: str = "claude-sonnet-5"
+    ai_default_provider: str = "groq"
+    ai_default_model: str = "llama-3.1-8b-instant"
     ai_default_temperature: float = 0.7
     ai_default_max_tokens: int = 2048
     ai_max_retries: int = 3
@@ -106,6 +106,31 @@ class Settings(BaseSettings):
     # development; set explicitly in production so JWT secret rotation doesn't
     # orphan stored credentials).
     credentials_encryption_key: str | None = None
+
+    # ─── Outreach sending (Communication -> Email Sending) ─────────────────────
+    # Deliberately separate from smtp_* above (transactional auth email) —
+    # mixing transactional and cold-outreach traffic on one sending domain
+    # damages deliverability for both. Org-level Integration rows (integration_type
+    # "smtp") take precedence when connected; these are the platform fallback.
+    outreach_smtp_host: str | None = None
+    outreach_smtp_port: int = 587
+    outreach_smtp_username: str | None = None
+    outreach_smtp_password: str | None = None
+    outreach_smtp_use_tls: bool = True
+    outreach_daily_send_limit_default: int = 100
+    outreach_send_max_retries: int = 3
+    # Default sending window for ad hoc (non-campaign) sends, in the
+    # organization's own timezone — protects deliverability reputation even
+    # for one-off sends the same way a campaign's send_days/hours would.
+    outreach_default_send_start_hour: int = 9
+    outreach_default_send_end_hour: int = 17
+
+    # ─── Company Research (AI -> Research & Prospect Analysis) ─────────────────
+    # How long a CompanyResearch row is considered fresh before a trigger without
+    # force=True is a no-op that just returns the existing AIJob.
+    research_staleness_days: int = 30
+    research_website_fetch_timeout_seconds: int = 8
+    research_website_max_bytes: int = 500_000
 
     # ─── File uploads (organization logo) ──────────────────────────────────────
     # Local disk storage — no cloud storage credentials exist in this project

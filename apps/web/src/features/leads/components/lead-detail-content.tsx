@@ -33,9 +33,13 @@ import { LeadActivityTimeline } from "./lead-activity-timeline";
 import { LeadAttachmentsPanel } from "./lead-attachments-panel";
 import { LeadFormDrawer } from "./lead-form-drawer";
 import { LeadNotesPanel } from "./lead-notes-panel";
+import { LeadOutreachPanel } from "./lead-outreach-panel";
+import { LeadResearchPanel } from "./lead-research-panel";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" | "info" | "primary"> = {
   new: "info",
+  researching: "info",
+  research_done: "primary",
   contacted: "primary",
   qualified: "primary",
   interested: "primary",
@@ -85,7 +89,7 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-heading-4 font-semibold text-foreground">{lead.full_name}</h1>
-                <StatusBadge tone={STATUS_TONE[lead.status] ?? "neutral"}>
+                <StatusBadge tone={STATUS_TONE[lead.status] ?? "neutral"} pulse={lead.status === "researching"}>
                   {LEAD_STATUS_LABELS[lead.status as LeadStatus] ?? lead.status}
                 </StatusBadge>
                 {lead.is_archived && <Badge variant="outline">Archived</Badge>}
@@ -134,6 +138,8 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
           <Tabs defaultValue="notes">
             <TabsList>
               <TabsTrigger value="notes">Notes ({lead.notes_count})</TabsTrigger>
+              <TabsTrigger value="research">Research</TabsTrigger>
+              <TabsTrigger value="outreach">Outreach</TabsTrigger>
               <TabsTrigger value="attachments">Attachments ({lead.attachments_count})</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -143,6 +149,12 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
                   <LeadNotesPanel leadId={lead.id} />
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="research">
+              <LeadResearchPanel leadId={lead.id} />
+            </TabsContent>
+            <TabsContent value="outreach">
+              <LeadOutreachPanel leadId={lead.id} />
             </TabsContent>
             <TabsContent value="attachments">
               <Card>

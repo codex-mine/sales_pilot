@@ -17,7 +17,10 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const ACCESS_TOKEN_COOKIE = "access_token";
 
-const protectedPaths = ["/dashboard", "/settings", "/organization", "/campaigns", "/ai", "/team", "/leads", "/companies"];
+const protectedPaths = [
+  "/dashboard", "/settings", "/organization", "/campaigns", "/ai", "/team",
+  "/leads", "/companies", "/email-templates", "/outreach",
+];
 const guestOnlyPaths = ["/login", "/register", "/forgot-password"];
 
 export function middleware(request: NextRequest): NextResponse {
@@ -45,6 +48,10 @@ export const config = {
     "/campaigns/:path*",
     "/ai/:path*",
     "/team/:path*",
+    "/leads/:path*",
+    "/companies/:path*",
+    "/email-templates/:path*",
+    "/outreach/:path*",
     "/login",
     "/register",
     "/forgot-password",

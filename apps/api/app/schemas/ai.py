@@ -65,7 +65,7 @@ class AIOutputResponse(BaseModel):
     job_id: str
     output_type: str
     content_text: str | None
-    content_json: dict | None
+    content_json: dict | list | None
     is_approved: bool | None
     approved_by: str | None
     approved_at: datetime | None

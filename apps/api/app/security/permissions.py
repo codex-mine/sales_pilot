@@ -20,7 +20,11 @@ RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     # existing role grants; "read"/"update"/"delete" are the granular actions
     # the Organization module's routes actually check.
     "organizations": ("read", "update", "delete", "manage"),
-    "campaigns": ("create", "read", "update", "delete"),
+    # "manage" gates org-level sender identity configuration (Email Sending
+    # module) — deliberately excluded from MANAGER's grant below even though
+    # MANAGER gets full CRUD on the rest of "campaigns"; connecting a sending
+    # domain is an OWNER/ADMIN-only action.
+    "campaigns": ("create", "read", "update", "delete", "manage"),
     "leads": ("create", "read", "update", "delete", "import", "export", "bulk"),
     "companies": ("create", "read", "update", "delete", "export", "bulk"),
     "notes": ("manage",),
@@ -68,7 +72,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         }
     ],
     RoleNameEnum.MANAGER: [
-        *_all("campaigns", "leads", "companies", "notes", "attachments"),
+        # Full campaigns CRUD, but not "manage" (sender identity config —
+        # OWNER/ADMIN only, see the RESOURCE_ACTIONS comment above).
+        ("campaigns", "create"), ("campaigns", "read"), ("campaigns", "update"), ("campaigns", "delete"),
+        *_all("leads", "companies", "notes", "attachments"),
         ("reports", "read"),
         ("analytics", "read"),
         # Managers can see AI activity/spend but not reconfigure providers,

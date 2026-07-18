@@ -1,18 +1,34 @@
+import type { AIJobResponse, AIOutputResponse } from "@/features/ai/types";
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse } from "@/types/api";
 import type {
   ActivityResponse,
+  ApproveEmailVariantRequest,
   AttachmentResponse,
   BulkActionResponse,
+  BulkEmailGenerationResponse,
   BulkLeadActionRequest,
+  BulkLeadEmailGenerationRequest,
+  BulkLeadResearchRequest,
+  BulkResearchResponse,
+  BulkSendRequest,
+  BulkSendResponse,
+  EmailPreviewResponse,
+  EmailResponse,
+  GenerateEmailRequest,
   ImportPreviewResponse,
   ImportResultResponse,
   LeadCreateRequest,
+  LeadResearchStatusResponse,
   LeadResponse,
   LeadsQuery,
   LeadUpdateRequest,
   NoteResponse,
+  OutboxEmailResponse,
   PaginationMeta,
+  ProspectAnalysisResponse,
+  RegenerateEmailRequest,
+  ScheduleEmailRequest,
   TagResponse,
 } from "../types";
 
@@ -143,6 +159,91 @@ export async function deleteAttachment(leadId: string, attachmentId: string): Pr
   await apiClient.delete(`/leads/${leadId}/attachments/${attachmentId}`);
 }
 
+// ─── Research (AI -> Prospect Analysis, combined "Research this Lead") ──────────
+
+export async function triggerLeadResearch(leadId: string, force = false): Promise<LeadResearchStatusResponse> {
+  const { data } = await apiClient.post<ApiResponse<LeadResearchStatusResponse>>(
+    `/leads/${leadId}/research`,
+    null,
+    { params: force ? { force: true } : undefined },
+  );
+  if (!data.data) throw new Error("Research trigger failed.");
+  return data.data;
+}
+
+export async function getLeadResearch(leadId: string, signal?: AbortSignal): Promise<LeadResearchStatusResponse> {
+  const { data } = await apiClient.get<ApiResponse<LeadResearchStatusResponse>>(`/leads/${leadId}/research`, {
+    signal,
+  });
+  if (!data.data) throw new Error("Lead research status not found.");
+  return data.data;
+}
+
+export async function getProspectAnalysis(
+  leadId: string,
+  signal?: AbortSignal,
+): Promise<ProspectAnalysisResponse | null> {
+  const { data } = await apiClient.get<ApiResponse<ProspectAnalysisResponse | null>>(
+    `/leads/${leadId}/prospect-analysis`,
+    { signal },
+  );
+  return data.data ?? null;
+}
+
+export async function bulkTriggerResearch(payload: BulkLeadResearchRequest): Promise<BulkResearchResponse> {
+  const { data } = await apiClient.post<ApiResponse<BulkResearchResponse>>("/leads/bulk/research", payload);
+  if (!data.data) throw new Error("Bulk research trigger failed.");
+  return data.data;
+}
+
+// ─── Email Generation (AI -> Personalized Email + Human Review) ─────────────────
+
+export async function generateLeadEmail(leadId: string, payload: GenerateEmailRequest): Promise<AIJobResponse> {
+  const { data } = await apiClient.post<ApiResponse<AIJobResponse>>(`/leads/${leadId}/emails/generate`, payload);
+  if (!data.data) throw new Error("Email generation failed.");
+  return data.data;
+}
+
+export async function getLeadEmailDrafts(leadId: string, signal?: AbortSignal): Promise<EmailResponse[]> {
+  const { data } = await apiClient.get<ApiResponse<EmailResponse[]>>(`/leads/${leadId}/emails/drafts`, { signal });
+  return data.data ?? [];
+}
+
+export async function regenerateLeadEmail(leadId: string, payload: RegenerateEmailRequest): Promise<AIJobResponse> {
+  const { data } = await apiClient.post<ApiResponse<AIJobResponse>>(`/leads/${leadId}/emails/regenerate`, payload);
+  if (!data.data) throw new Error("Regeneration failed.");
+  return data.data;
+}
+
+export async function bulkGenerateEmails(
+  payload: BulkLeadEmailGenerationRequest,
+): Promise<BulkEmailGenerationResponse> {
+  const { data } = await apiClient.post<ApiResponse<BulkEmailGenerationResponse>>(
+    "/leads/bulk/generate-emails",
+    payload,
+  );
+  if (!data.data) throw new Error("Bulk email generation failed.");
+  return data.data;
+}
+
+export async function approveEmailVariant(
+  outputId: string,
+  payload: ApproveEmailVariantRequest,
+): Promise<EmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailResponse>>(
+    `/ai/outputs/${outputId}/approve-email`,
+    payload,
+  );
+  if (!data.data) throw new Error("Approval failed.");
+  return data.data;
+}
+
+export async function rejectEmailVariant(outputId: string): Promise<AIOutputResponse> {
+  const { data } = await apiClient.post<ApiResponse<AIOutputResponse>>(`/ai/outputs/${outputId}/reject-email`);
+  if (!data.data) throw new Error("Rejection failed.");
+  return data.data;
+}
+
 // ─── Activities ─────────────────────────────────────────────────────────────────
 
 export async function getActivities(
@@ -157,6 +258,63 @@ export async function getActivities(
     activities: data.data ?? [],
     meta: (data.meta as unknown as PaginationMeta) ?? { page: 1, page_size: pageSize, total: 0 },
   };
+}
+
+// ─── Email Sending (Communication -> Send Draft Email) ──────────────────────────
+
+export async function sendLeadEmail(leadId: string, emailId: string): Promise<EmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailResponse>>(
+    `/leads/${leadId}/emails/${emailId}/send`,
+  );
+  if (!data.data) throw new Error("Send failed.");
+  return data.data;
+}
+
+export async function scheduleLeadEmail(
+  leadId: string,
+  emailId: string,
+  payload: ScheduleEmailRequest,
+): Promise<EmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailResponse>>(
+    `/leads/${leadId}/emails/${emailId}/schedule`,
+    payload,
+  );
+  if (!data.data) throw new Error("Schedule failed.");
+  return data.data;
+}
+
+export async function cancelLeadEmail(leadId: string, emailId: string): Promise<EmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailResponse>>(
+    `/leads/${leadId}/emails/${emailId}/cancel`,
+  );
+  if (!data.data) throw new Error("Cancel failed.");
+  return data.data;
+}
+
+export async function getEmailPreview(emailId: string, signal?: AbortSignal): Promise<EmailPreviewResponse> {
+  const { data } = await apiClient.get<ApiResponse<EmailPreviewResponse>>(`/emails/${emailId}/preview`, { signal });
+  if (!data.data) throw new Error("Preview not available.");
+  return data.data;
+}
+
+export async function getEmailOutbox(
+  query: { status?: string[]; search?: string; page?: number; page_size?: number } = {},
+  signal?: AbortSignal,
+): Promise<{ emails: OutboxEmailResponse[]; meta: PaginationMeta }> {
+  const { data } = await apiClient.get<ApiResponse<OutboxEmailResponse[]>>("/emails/outbox", {
+    params: query,
+    signal,
+  });
+  return {
+    emails: data.data ?? [],
+    meta: (data.meta as unknown as PaginationMeta) ?? { page: 1, page_size: 25, total: 0 },
+  };
+}
+
+export async function bulkSendEmails(payload: BulkSendRequest): Promise<BulkSendResponse> {
+  const { data } = await apiClient.post<ApiResponse<BulkSendResponse>>("/emails/bulk-send", payload);
+  if (!data.data) throw new Error("Bulk send failed.");
+  return data.data;
 }
 
 export const leadService = {
@@ -178,4 +336,20 @@ export const leadService = {
   getAttachments,
   deleteAttachment,
   getActivities,
+  triggerLeadResearch,
+  getLeadResearch,
+  getProspectAnalysis,
+  bulkTriggerResearch,
+  generateLeadEmail,
+  getLeadEmailDrafts,
+  regenerateLeadEmail,
+  bulkGenerateEmails,
+  approveEmailVariant,
+  rejectEmailVariant,
+  sendLeadEmail,
+  scheduleLeadEmail,
+  cancelLeadEmail,
+  getEmailPreview,
+  getEmailOutbox,
+  bulkSendEmails,
 };

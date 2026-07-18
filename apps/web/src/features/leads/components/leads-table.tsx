@@ -20,6 +20,9 @@ import {
   Archive,
   ArchiveRestore,
   Download,
+  Mail,
+  Send,
+  Sparkles,
   Star,
   Tag as TagIcon,
   Trash2,
@@ -28,12 +31,16 @@ import {
 import { useOrganizationMembers } from "@/features/organizations/hooks/use-organization-members";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useBulkLeads } from "../hooks/use-bulk-leads";
+import { useBulkGenerateEmails } from "../hooks/use-lead-email-generation";
 import { useExportLeads } from "../hooks/use-lead-import-export";
+import { useBulkSendEmails } from "../hooks/use-lead-sending";
+import { useBulkTriggerResearch, useTriggerLeadResearch } from "../hooks/use-lead-research";
 import { useDeleteLead, useToggleLeadFlag, useUpdateLead } from "../hooks/use-lead-mutations";
 import { useLeadTags } from "../hooks/use-lead-tags";
 import { useLeads } from "../hooks/use-leads";
 import { LEAD_STATUS_CHOICES, LEAD_STATUS_LABELS, type LeadResponse, type LeadsQuery } from "../types";
 import { AssignOwnerDialog } from "./assign-owner-dialog";
+import { BulkGenerateEmailsDialog } from "./bulk-generate-emails-dialog";
 import { buildLeadsTableColumns } from "./leads-table-columns";
 import { LeadsTablePagination } from "./leads-table-pagination";
 
@@ -60,6 +67,7 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
   const [pageSize, setPageSize] = useState(25);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [assignOwnerLeadIds, setAssignOwnerLeadIds] = useState<string[] | null>(null);
+  const [bulkGenerateOpen, setBulkGenerateOpen] = useState(false);
 
   const deleteConfirm = useConfirmDialog();
   const bulkDeleteConfirm = useConfirmDialog();
@@ -88,6 +96,11 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
   const { bulkAction, isRunning: isBulkRunning } = useBulkLeads();
   const { exportLeads, isExporting } = useExportLeads();
   const { updateLead } = useUpdateLead();
+  const { triggerResearch } = useTriggerLeadResearch();
+  const { bulkTriggerResearch, isTriggering: isBulkResearching } = useBulkTriggerResearch();
+  const { bulkGenerate, isGenerating: isBulkGenerating } = useBulkGenerateEmails();
+  const { bulkSend, isSending: isBulkSending } = useBulkSendEmails();
+  const bulkSendConfirm = useConfirmDialog();
 
   const tagOptions: MultiSelectOption[] = tags.map((tag) => ({ value: tag.name, label: tag.name }));
 
@@ -103,6 +116,7 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
           setPendingDeleteLead(lead);
           deleteConfirm.open();
         },
+        onResearch: (lead) => void triggerResearch({ leadId: lead.id }),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- action callbacks are stable enough for column defs
     [onEditLead],
@@ -211,6 +225,23 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
         }
         bulkActions={
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void bulkTriggerResearch(selectedLeadIds).then(() => setRowSelection({}))}
+              isLoading={isBulkResearching}
+            >
+              <Sparkles className="size-4" />
+              Research Selected
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setBulkGenerateOpen(true)}>
+              <Mail className="size-4" />
+              Generate Emails
+            </Button>
+            <Button variant="ghost" size="sm" onClick={bulkSendConfirm.open} isLoading={isBulkSending}>
+              <Send className="size-4" />
+              Send Approved Emails
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setAssignOwnerLeadIds(selectedLeadIds)}>
               <UserCog className="size-4" />
               Assign owner
@@ -323,6 +354,20 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
         isConfirming={isBulkRunning}
         onConfirm={handleBulkDelete}
       />
+      <ConfirmDialog
+        open={bulkSendConfirm.isOpen}
+        onOpenChange={bulkSendConfirm.onOpenChange}
+        title={`Send approved emails to ${selectedLeadIds.length} lead(s)?`}
+        description="Sends the current DRAFT email for each selected lead that has one. This is externally visible and cannot be undone — leads without an approved draft are skipped."
+        confirmLabel="Send emails"
+        confirmVariant="primary"
+        isConfirming={isBulkSending}
+        onConfirm={async () => {
+          await bulkSend({ lead_ids: selectedLeadIds });
+          setRowSelection({});
+          bulkSendConfirm.close();
+        }}
+      />
       <AssignOwnerDialog
         open={assignOwnerLeadIds !== null}
         onOpenChange={(open) => !open && setAssignOwnerLeadIds(null)}
@@ -335,6 +380,16 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
             await bulkAction({ lead_ids: assignOwnerLeadIds, action: "assign_owner", owner_id: ownerId });
           }
           setAssignOwnerLeadIds(null);
+          setRowSelection({});
+        }}
+      />
+      <BulkGenerateEmailsDialog
+        open={bulkGenerateOpen}
+        onOpenChange={setBulkGenerateOpen}
+        leadCount={selectedLeadIds.length}
+        isGenerating={isBulkGenerating}
+        onGenerate={async ({ templateType, tone }) => {
+          await bulkGenerate({ lead_ids: selectedLeadIds, template_type: templateType, tone });
           setRowSelection({});
         }}
       />

@@ -38,6 +38,7 @@ import { CompanyEmployeesTable } from "./company-employees-table";
 import { CompanyFormDrawer } from "./company-form-drawer";
 import { CompanyLogoUpload } from "./company-logo-upload";
 import { CompanyNotesPanel } from "./company-notes-panel";
+import { CompanyResearchPanel } from "./company-research-panel";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" | "info" | "primary"> = {
   prospect: "info",
@@ -130,6 +131,7 @@ export function CompanyDetailContent({ companyId }: CompanyDetailContentProps): 
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="employees">Employees ({company.contact_count})</TabsTrigger>
+          <TabsTrigger value="research">Research</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="notes">Notes ({company.notes_count})</TabsTrigger>
           <TabsTrigger value="attachments">Attachments ({company.attachments_count})</TabsTrigger>
@@ -245,6 +247,10 @@ export function CompanyDetailContent({ companyId }: CompanyDetailContentProps): 
               <CompanyEmployeesTable companyId={company.id} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="research">
+          <CompanyResearchPanel companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="timeline">

@@ -17,6 +17,7 @@ Execution model:
   append-only audit rule.
 """
 
+import json
 import time
 import traceback
 import uuid
@@ -25,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.exceptions.errors import NotFoundError, ValidationError
+from app.exceptions.errors import AIOutputParsingError, NotFoundError, ValidationError
 from app.models.ai.models import AIJob, AIOutput
 from app.models.enums import AIAgentTypeEnum, AIJobStatusEnum, AuditActionEnum, LLMProviderEnum
 from app.models.identity.models import User
@@ -76,6 +77,7 @@ class AIJobService:
         agent_type: AIAgentTypeEnum,
         initiated_by: uuid.UUID | None,
         parent_job_id: uuid.UUID | None = None,
+        response_format: str = "text",
     ) -> AIJob:
         settings = get_settings()
 
@@ -122,6 +124,7 @@ class AIJobService:
                 "variables": _stringify_values(variables),
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "response_format": response_format,
             },
             max_retries=settings.ai_max_retries,
         )
@@ -170,6 +173,16 @@ class AIJobService:
                 temperature=input_data.get("temperature", 0.7),
                 max_tokens=input_data.get("max_tokens", 2048),
             )
+            # response_format="json" (research/email-gen/etc. all request
+            # structured output) is validated here, inside the same try block
+            # as the provider call, so malformed output fails the AIJob
+            # cleanly via the except below instead of being marked COMPLETED
+            # with garbage content_json.
+            content_json = (
+                _parse_json_content(result.content)
+                if input_data.get("response_format") == "json"
+                else None
+            )
         except Exception as exc:  # noqa: BLE001 — every failure lands on the job row
             await self.jobs.mark_failed(
                 job, error_message=str(exc), error_traceback=traceback.format_exc()
@@ -184,6 +197,7 @@ class AIJobService:
             organization_id=organization_id,
             output_type=job.job_type,
             content_text=result.content,
+            content_json=content_json,
         )
         await self.jobs.mark_completed(
             job,
@@ -292,6 +306,29 @@ class AIJobService:
             action=AuditActionEnum.UPDATE, resource_type="ai_job", resource_id=job.id,
             changes={"event": action_detail, **_stringify_values(extra)},
         )
+
+
+def _parse_json_content(text: str) -> dict | list:
+    """Defensive JSON parse for `response_format="json"` jobs: strips a
+    ```json fence some models still wrap output in despite being told to
+    return raw JSON, then requires a JSON object or array (not a bare
+    scalar/null) — most structured-output callers (research, prospect
+    analysis) return an object; multi-variant callers (email generation)
+    return an array of objects. Each feature service validates the specific
+    shape it expects on top of this."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.strip("`")
+        if stripped.lower().startswith("json"):
+            stripped = stripped[4:]
+        stripped = stripped.strip()
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise AIOutputParsingError(f"Model returned malformed JSON: {exc}") from exc
+    if not isinstance(parsed, (dict, list)):
+        raise AIOutputParsingError("Model output was valid JSON but not a JSON object or array.")
+    return parsed
 
 
 def _stringify_values(payload: dict) -> dict:

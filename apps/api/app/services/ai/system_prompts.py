@@ -30,6 +30,22 @@ SYSTEM_PROMPT_TEMPLATES: dict[str, tuple[AIAgentTypeEnum, str, str, str, list[st
         "funding_stage, growth_signals.",
         ["company_name", "context"],
     ),
+    "analyze_prospect": (
+        AIAgentTypeEnum.PROSPECT_ANALYSIS,
+        "Analyzes a lead as a sales prospect: buying intent, objections, and recommended approach.",
+        "You are a B2B sales strategist. You analyze individual prospects to help "
+        "reps prioritize outreach and tailor their pitch. Respond with valid JSON only — "
+        "no markdown fences, no commentary.",
+        "Analyze {{ lead_first_name }} ({{ lead_job_title }}) at {{ lead_company_name }} "
+        "as a sales prospect.\n\n"
+        "Company research summary:\n{{ company_research_summary }}\n\n"
+        "Return a JSON object with keys: buying_intent (one of: high, medium, low), "
+        "priority_score (a number 0-100), recommended_approach, value_proposition, "
+        "predicted_objections (array of strings), likely_goals (array of strings), "
+        "decision_authority (one of: decision_maker, influencer, evaluator, end_user), "
+        "best_contact_time.",
+        ["lead_first_name", "lead_job_title", "lead_company_name", "company_research_summary"],
+    ),
     "generate_email": (
         AIAgentTypeEnum.EMAIL_GENERATION,
         "Writes a personalized outreach email for a lead.",
