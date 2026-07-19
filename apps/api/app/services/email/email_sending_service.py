@@ -35,13 +35,17 @@ from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.email_repository import EmailRepository
+from app.repositories.email_template_repository import EmailTemplateRepository
 from app.repositories.lead_repository import LeadRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.schemas.leads import LeadUpdateRequest
 from app.security.tokens import create_unsubscribe_token
 from app.services.email.email_sender_settings_service import EmailSenderSettingsService
+from app.services.email.email_tracking_service import EmailTrackingService
 from app.services.email.sender_client import get_sender_client
 from app.services.lead_service import LeadService
+from app.services.lead_suppression import suppress_lead
+from app.services.system_actor import resolve_org_owner
 
 _UNSENDABLE_STATUSES = {"sent", "delivered", "opened", "clicked", "bounced", "spam"}
 _DEFAULT_SEND_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
@@ -57,6 +61,7 @@ class EmailSendingService:
         self.activities = ActivityRepository(db)
         self.audit_log = AuditLogRepository(db)
         self.lead_service = LeadService(db)
+        self.templates = EmailTemplateRepository(db)
 
     async def require_email(self, email_id: uuid.UUID, organization_id: uuid.UUID) -> Email:
         email = await self.emails.get_by_id(email_id, organization_id)
@@ -157,7 +162,11 @@ class EmailSendingService:
         if lead is None:
             raise NotFoundError("Lead not found.")
         organization = await self.organizations.get_by_id(organization_id)
-        body_html, body_text = self._inject_compliance_footer(email, lead, organization)
+        body_html, body_text, unsubscribe_url = self._inject_compliance_footer(email, lead, organization)
+        body_html, body_text = await EmailTrackingService(self.db).instrument_content(
+            email, body_html, body_text, unsubscribe_url
+        )
+        await self.db.commit()  # persists tracking_pixel_id if this is the first time it was generated
         return {
             "subject": email.subject, "body_html": body_html, "body_text": body_text,
             "to_email": email.to_email, "to_name": email.to_name,
@@ -237,7 +246,10 @@ class EmailSendingService:
         host, port, username, password, use_tls = credentials
 
         organization = await self.organizations.get_by_id(email.organization_id)
-        final_html, final_text = self._inject_compliance_footer(email, lead, organization)
+        final_html, final_text, unsubscribe_url = self._inject_compliance_footer(email, lead, organization)
+        final_html, final_text = await EmailTrackingService(self.db).instrument_content(
+            email, final_html, final_text, unsubscribe_url
+        )
         await self.emails.update(email, {"current_status": "sending"}, updated_by=actor.id)
         await self.db.commit()
 
@@ -261,6 +273,12 @@ class EmailSendingService:
             updated_by=actor.id,
         )
         await self._attach_conversation(email, lead)
+        await EmailTrackingService(self.db).record_sent(email)
+        if email.email_template_id:
+            template = await self.templates.get_by_id(email.email_template_id, email.organization_id)
+            if template is not None:
+                template.total_sent += 1
+                await self.db.flush()
         await self.activities.record(
             organization_id=email.organization_id, lead_id=lead.id, actor_id=actor.id,
             activity_type=ActivityTypeEnum.EMAIL_SENT,
@@ -364,7 +382,7 @@ class EmailSendingService:
 
     # ─── Compliance footer (CAN-SPAM: unsubscribe link + org identity) ──────────
 
-    def _inject_compliance_footer(self, email: Email, lead: Lead, organization) -> tuple[str, str]:
+    def _inject_compliance_footer(self, email: Email, lead: Lead, organization) -> tuple[str, str, str]:
         """Injected server-side at send time — never trusted from the
         AI-generated or user-edited body, so it can't be accidentally
         stripped or edited out. The stored Draft/AIOutput content stays pure;
@@ -390,7 +408,7 @@ class EmailSendingService:
             f"\n\n---\n{org_name}" + (f", {org_address}" if org_address else "")
             + f"\nUnsubscribe: {unsubscribe_url}"
         )
-        return (email.body_html or "") + html_footer, (email.body_text or "") + text_footer
+        return (email.body_html or "") + html_footer, (email.body_text or "") + text_footer, unsubscribe_url
 
     # ─── Conversation threading ─────────────────────────────────────────────────
 
@@ -436,36 +454,14 @@ class EmailSendingService:
         if lead is None:
             raise NotFoundError("This link is invalid or has expired.")
         if lead.status != LeadStatusEnum.UNSUBSCRIBED.value:
-            system_user = await self._system_actor(organization_id)
-            await self.lead_service.update(
-                lead, payload=LeadUpdateRequest(status=LeadStatusEnum.UNSUBSCRIBED.value), actor=system_user
-            )
-            await self.audit_log.record(
-                organization_id=organization_id, actor_id=None, actor_email=None,
-                action=AuditActionEnum.UPDATE, resource_type="lead", resource_id=lead.id,
-                changes={"event": "unsubscribe_processed"},
+            try:
+                system_user = await resolve_org_owner(self.db, organization_id)
+            except NotFoundError as exc:
+                raise NotFoundError("This link is invalid or has expired.") from exc
+            await suppress_lead(
+                self.db, lead, status=LeadStatusEnum.UNSUBSCRIBED,
+                audit_event="unsubscribe_processed", actor=system_user,
             )
             await self.db.commit()
         organization = await self.organizations.get_by_id(organization_id)
         return {"lead_first_name": lead.first_name, "organization_name": organization.name if organization else "SalesPilot"}
-
-    async def _system_actor(self, organization_id: uuid.UUID) -> User:
-        """The unsubscribe endpoint is unauthenticated by design (the
-        recipient has no account) — LeadService.update requires an actor for
-        its full_name in Activity summaries, so this resolves the
-        organization's owner as the recording actor. This mirrors how
-        AIJob.initiated_by is nullable for automated actions; here
-        LeadService itself always requires a User, so a real one is used
-        rather than widening that shared contract for one caller."""
-        from app.models.identity.models import Role, UserRole
-
-        owner = await self.db.scalar(
-            select(User)
-            .join(UserRole, UserRole.user_id == User.id)
-            .join(Role, Role.id == UserRole.role_id)
-            .where(User.organization_id == organization_id, Role.name == "owner")
-            .limit(1)
-        )
-        if owner is None:
-            raise NotFoundError("This link is invalid or has expired.")
-        return owner

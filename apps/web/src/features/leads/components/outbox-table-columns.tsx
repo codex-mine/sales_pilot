@@ -69,6 +69,11 @@ export function buildOutboxTableColumns(actions: OutboxTableActions): ColumnDef<
                 {email.send_error}
               </span>
             )}
+            {(email.current_status === "bounced" || email.current_status === "spam") && email.bounce_reason && (
+              <span className="max-w-56 truncate text-caption text-danger" title={email.bounce_reason}>
+                {email.bounce_reason}
+              </span>
+            )}
           </div>
         );
       },

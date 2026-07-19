@@ -12,6 +12,7 @@ Two distinct token families are used deliberately:
 """
 
 import hashlib
+import hmac
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -133,6 +134,21 @@ def create_unsubscribe_token(lead_id: str, organization_id: str) -> str:
         "jti": _new_jti(),
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def sign_click_url(tracking_pixel_id: str, url: str) -> str:
+    """Signs a click-tracking redirect target so `/track/click/{id}` can't be
+    used as an open redirector for arbitrary attacker-supplied URLs — reuses
+    `jwt_secret_key`, the same signing key `create_unsubscribe_token` uses,
+    but as a short HMAC digest rather than a JWT: a single email can contain
+    many links, and a full JWT per link would bloat every href noticeably."""
+    message = f"{tracking_pixel_id}:{url}".encode()
+    return hmac.new(get_settings().jwt_secret_key.encode(), message, hashlib.sha256).hexdigest()
+
+
+def verify_click_signature(tracking_pixel_id: str, url: str, signature: str) -> bool:
+    expected = sign_click_url(tracking_pixel_id, url)
+    return hmac.compare_digest(expected, signature)
 
 
 def create_opaque_token() -> str:

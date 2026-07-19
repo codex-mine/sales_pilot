@@ -46,6 +46,7 @@ class OutboxEmailResponse(BaseModel):
     ai_generated: bool
     send_error: str | None
     send_retry_count: int
+    bounce_reason: str | None = None
     scheduled_at: datetime | None
     sent_at: datetime | None
     created_at: datetime

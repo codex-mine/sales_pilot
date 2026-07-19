@@ -12,11 +12,14 @@ from app.exceptions.errors import NotFoundError, ValidationError
 from app.models.enums import EmailTemplateTypeEnum, EmailToneEnum
 from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
+from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.lead_repository import LeadRepository
 from app.repositories.tag_repository import TagRepository
 from app.schemas.ai import AIJobResponse
 from app.schemas.ai_serializers import serialize_job
 from app.schemas.common import ApiResponse
+from app.schemas.inbox import ConversationListItemResponse
+from app.schemas.inbox_serializers import serialize_conversation_list_item
 from app.schemas.email_generation import (
     BulkEmailGenerationResponse,
     BulkLeadEmailGenerationRequest,
@@ -619,6 +622,20 @@ async def list_activities(
         data=[serialize_activity(a) for a in activities],
         meta={"page": page, "page_size": page_size, "total": total},
     )
+
+
+# ─── Conversations (Inbox) ────────────────────────────────────────────────────────
+
+
+@router.get("/{lead_id}/conversations", response_model=ApiResponse[list[ConversationListItemResponse]])
+async def list_lead_conversations(
+    lead_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[ConversationListItemResponse]]:
+    await LeadService(db).require_lead(lead_id, user.organization_id)
+    conversations = await ConversationRepository(db).list_for_lead(lead_id, user.organization_id)
+    return ApiResponse(data=[serialize_conversation_list_item(c) for c in conversations])
 
 
 # ─── Attachments ────────────────────────────────────────────────────────────────

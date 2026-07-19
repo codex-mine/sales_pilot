@@ -26,6 +26,47 @@ class EmailRepository:
             .where(Email.id == email_id, Email.organization_id == organization_id)
         )
 
+    async def get_by_tracking_pixel_id(self, tracking_pixel_id: str) -> Email | None:
+        """No `organization_id` scoping — this is resolved from a public,
+        unauthenticated pixel/click request; the tracking_pixel_id itself
+        (an unguessable token, generated at send time) IS the tenant
+        resolution, exactly like the unsubscribe token's `sub` claim."""
+        return await self.db.scalar(select(Email).where(Email.tracking_pixel_id == tracking_pixel_id))
+
+    async def get_by_external_message_id(self, external_message_id: str) -> Email | None:
+        """Resolves a webhook payload's message reference back to the Email
+        row — also unscoped by organization for the same reason as
+        `get_by_tracking_pixel_id` (the caller is the sending provider, not
+        an authenticated user)."""
+        return await self.db.scalar(select(Email).where(Email.external_message_id == external_message_id))
+
+    async def find_correspondence(self, prospect_email: str, org_recipient_email: str) -> Email | None:
+        """Resolves BOTH the organization and the Lead for an inbound reply
+        in one query: the most recent Email we sent FROM the address the
+        reply arrived TO, and TO the address the reply arrived FROM. This
+        is more reliable than a domain-routing table (which this schema
+        doesn't have) — it's exactly how a real reply-in-thread works."""
+        return await self.db.scalar(
+            select(Email)
+            .where(
+                func.lower(Email.to_email) == prospect_email.lower(),
+                func.lower(Email.from_email) == org_recipient_email.lower(),
+            )
+            .order_by(Email.created_at.desc())
+            .limit(1)
+        )
+
+    async def get_latest_for_conversation(self, conversation_id: uuid.UUID) -> Email | None:
+        """Threading fallback for the Inbox module: when an inbound reply's
+        In-Reply-To header doesn't resolve, the most recent outgoing Email
+        in the same conversation is the best available match."""
+        return await self.db.scalar(
+            select(Email)
+            .where(Email.conversation_id == conversation_id)
+            .order_by(Email.created_at.desc())
+            .limit(1)
+        )
+
     async def get_for_update(self, email_id: uuid.UUID, organization_id: uuid.UUID) -> Email | None:
         """Row-locked read for the send path — guards against two concurrent
         requests (or a request racing the scheduler) double-sending the same

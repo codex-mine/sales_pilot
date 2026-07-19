@@ -82,6 +82,11 @@ class Email(BaseModel):
     sent_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    email_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("email_templates.id", ondelete="SET NULL"), nullable=True, index=True,
+        comment="Set when this Email was created from (or saved as) an EmailTemplate — "
+        "drives EmailTemplate.total_sent/total_opened/total_replied analytics."
+    )
 
     # Content
     from_email: Mapped[str] = mapped_column(String(255), nullable=False)

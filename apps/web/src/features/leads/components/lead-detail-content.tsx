@@ -31,6 +31,7 @@ import { useLead } from "../hooks/use-lead";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "../types";
 import { LeadActivityTimeline } from "./lead-activity-timeline";
 import { LeadAttachmentsPanel } from "./lead-attachments-panel";
+import { LeadConversationsPanel } from "./lead-conversations-panel";
 import { LeadFormDrawer } from "./lead-form-drawer";
 import { LeadNotesPanel } from "./lead-notes-panel";
 import { LeadOutreachPanel } from "./lead-outreach-panel";
@@ -41,13 +42,18 @@ const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" |
   researching: "info",
   research_done: "primary",
   contacted: "primary",
+  opened: "primary",
+  replied: "primary",
   qualified: "primary",
   interested: "primary",
+  unqualified: "danger",
   demo_scheduled: "warning",
   proposal: "warning",
   negotiation: "warning",
   won: "success",
   lost: "danger",
+  bounced: "danger",
+  unsubscribed: "danger",
 };
 
 export interface LeadDetailContentProps {
@@ -140,6 +146,7 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
               <TabsTrigger value="notes">Notes ({lead.notes_count})</TabsTrigger>
               <TabsTrigger value="research">Research</TabsTrigger>
               <TabsTrigger value="outreach">Outreach</TabsTrigger>
+              <TabsTrigger value="conversations">Conversations</TabsTrigger>
               <TabsTrigger value="attachments">Attachments ({lead.attachments_count})</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -155,6 +162,13 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
             </TabsContent>
             <TabsContent value="outreach">
               <LeadOutreachPanel leadId={lead.id} />
+            </TabsContent>
+            <TabsContent value="conversations">
+              <Card>
+                <CardContent className="pt-6">
+                  <LeadConversationsPanel leadId={lead.id} />
+                </CardContent>
+              </Card>
             </TabsContent>
             <TabsContent value="attachments">
               <Card>

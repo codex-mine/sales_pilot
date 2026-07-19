@@ -38,7 +38,7 @@ def serialize_email(email: Email) -> EmailResponse:
     )
 
 
-def serialize_outbox_email(email: Email) -> OutboxEmailResponse:
+def serialize_outbox_email(email: Email, *, bounce_reason: str | None = None) -> OutboxEmailResponse:
     lead = email.lead
     return OutboxEmailResponse(
         id=str(email.id),
@@ -54,6 +54,7 @@ def serialize_outbox_email(email: Email) -> OutboxEmailResponse:
         ai_generated=email.ai_generated,
         send_error=email.send_error,
         send_retry_count=email.send_retry_count,
+        bounce_reason=bounce_reason,
         scheduled_at=email.scheduled_at,
         sent_at=email.sent_at,
         created_at=email.created_at,

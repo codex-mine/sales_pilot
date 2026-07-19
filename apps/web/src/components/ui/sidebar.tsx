@@ -6,11 +6,12 @@ import Link from "next/link";
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react";
-import { PanelLeftClose, PanelLeft, type IconComponent } from "@/icons";
+import { ChevronDown, PanelLeftClose, PanelLeft, type IconComponent } from "@/icons";
 import { useBreakpoint } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { duration, easing } from "@/motion/tokens";
@@ -170,6 +171,134 @@ export function SidebarNavItem({
       <TooltipTrigger asChild>{content}</TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+export interface SidebarNavCollapsibleItem {
+  href: string;
+  label: string;
+  icon: IconComponent;
+  isActive: boolean;
+}
+
+export interface SidebarNavCollapsibleProps {
+  icon: IconComponent;
+  label: string;
+  items: SidebarNavCollapsibleItem[];
+  /** Whether any child route is currently active — drives the parent's active styling and the initial open state. */
+  isActiveGroup: boolean;
+  /** Fired when a child link (or, collapsed, the group itself) is clicked — closes the mobile slide-over nav. */
+  onNavigate?: () => void;
+  className?: string;
+}
+
+/** A sidebar nav item that expands in place to reveal sub-routes (e.g. Settings -> Profile/Security/Organization)
+ * instead of pushing them into a separate in-page sidebar. Auto-opens when one of its children is the active route;
+ * collapsed (icon-only) sidebar mode skips the expand affordance and just links straight to the first child. */
+export function SidebarNavCollapsible({
+  icon: Icon,
+  label,
+  items,
+  isActiveGroup,
+  onNavigate,
+  className,
+}: SidebarNavCollapsibleProps): React.ReactElement {
+  const { isCollapsed } = useSidebarContext();
+  const [isOpen, setIsOpen] = useState(isActiveGroup);
+
+  useEffect(() => {
+    if (isActiveGroup) setIsOpen(true);
+  }, [isActiveGroup]);
+
+  if (isCollapsed) {
+    const first = items[0];
+    const content = (
+      <Link
+        href={first ? first.href : "#"}
+        aria-current={isActiveGroup ? "page" : undefined}
+        onClick={onNavigate}
+        className={cn(
+          "group relative flex h-11 items-center justify-center rounded-md px-0 text-body-md font-medium transition-colors duration-fast ease-standard",
+          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          isActiveGroup ? "font-semibold text-primary hover:bg-transparent hover:text-primary" : "text-sidebar-foreground/60",
+          className,
+        )}
+      >
+        <Icon className="size-5 shrink-0" />
+        {isActiveGroup && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-4 top-1/2 h-8 w-1 -translate-y-1/2 rounded-l-full bg-primary"
+          />
+        )}
+      </Link>
+    );
+    return (
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
+        className={cn(
+          "group relative flex h-11 w-full items-center gap-3 rounded-md px-3 text-body-md font-medium transition-colors duration-fast ease-standard",
+          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          isActiveGroup ? "font-semibold text-primary hover:bg-transparent hover:text-primary" : "text-sidebar-foreground/60",
+        )}
+      >
+        <Icon className="size-5 shrink-0" />
+        <span className="flex-1 truncate text-left">{label}</span>
+        <ChevronDown
+          className={cn("size-4 shrink-0 transition-transform duration-fast ease-standard", isOpen && "rotate-180")}
+        />
+        {isActiveGroup && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-4 top-1/2 h-8 w-1 -translate-y-1/2 rounded-l-full bg-primary"
+          />
+        )}
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: duration.fast, ease: easing.standard }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-col gap-1 py-1 pl-4">
+              {items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={item.isActive ? "page" : undefined}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex h-9 items-center gap-2.5 rounded-md px-3 text-body-sm font-medium transition-colors duration-fast ease-standard",
+                    "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    "focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                    item.isActive ? "font-semibold text-primary" : "text-sidebar-foreground/60",
+                  )}
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

@@ -144,6 +144,28 @@ class Settings(BaseSettings):
     # on the frontend points there for JSON endpoints.
     api_base_url: str = "http://localhost:8000"
 
+    # ─── Email Tracking (Communication -> Open/Click Tracking & Delivery Events) ─
+    # Shared secret for verifying the "generic" HMAC-SHA256 webhook signature
+    # scheme (X-Webhook-Signature header over the raw body). Falls back to a
+    # key derived from jwt_secret_key when unset, same dev-convenience pattern
+    # as CREDENTIALS_ENCRYPTION_KEY in app/security/crypto.py — a real
+    # deployment wiring an actual ESP's webhook should set this explicitly.
+    email_webhook_signing_secret: str | None = None
+    # A pixel fetch this soon after send is treated as a possible bot/prefetch
+    # (Apple Mail Privacy Protection, corporate scanners) rather than a human
+    # open — see email_tracking_service.py.
+    email_open_bot_window_seconds: int = 5
+    # Repeated pixel fires for the same email within this window are treated
+    # as one open (mail clients re-fetch on scroll/re-render).
+    email_open_dedupe_window_seconds: int = 300
+
+    # ─── Inbox (Communication -> Inbound Reply Ingestion & Classification) ──────
+    # Password half of the HTTP Basic Auth credential Postmark's real Inbound
+    # Webhook is configured with (set on the webhook URL in Postmark's
+    # dashboard) — unset means the "postmark" inbound provider is rejected
+    # outright rather than silently accepting unauthenticated requests.
+    inbound_email_basic_auth_password: str | None = None
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value):

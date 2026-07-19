@@ -13,8 +13,10 @@ import type {
   BulkResearchResponse,
   BulkSendRequest,
   BulkSendResponse,
+  EmailEventResponse,
   EmailPreviewResponse,
   EmailResponse,
+  EmailTimelineResponse,
   GenerateEmailRequest,
   ImportPreviewResponse,
   ImportResultResponse,
@@ -297,6 +299,17 @@ export async function getEmailPreview(emailId: string, signal?: AbortSignal): Pr
   return data.data;
 }
 
+export async function getEmailEvents(emailId: string, signal?: AbortSignal): Promise<EmailEventResponse[]> {
+  const { data } = await apiClient.get<ApiResponse<EmailEventResponse[]>>(`/emails/${emailId}/events`, { signal });
+  return data.data ?? [];
+}
+
+export async function getEmailTimeline(emailId: string, signal?: AbortSignal): Promise<EmailTimelineResponse> {
+  const { data } = await apiClient.get<ApiResponse<EmailTimelineResponse>>(`/emails/${emailId}/timeline`, { signal });
+  if (!data.data) throw new Error("Timeline not available.");
+  return data.data;
+}
+
 export async function getEmailOutbox(
   query: { status?: string[]; search?: string; page?: number; page_size?: number } = {},
   signal?: AbortSignal,
@@ -350,6 +363,8 @@ export const leadService = {
   scheduleLeadEmail,
   cancelLeadEmail,
   getEmailPreview,
+  getEmailEvents,
+  getEmailTimeline,
   getEmailOutbox,
   bulkSendEmails,
 };

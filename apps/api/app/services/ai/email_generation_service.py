@@ -288,8 +288,9 @@ class EmailGenerationService:
 
         await self.ai_outputs.set_approval(output, approved=True, approved_by=actor.id)
 
+        template = None
         if save_as_template:
-            await self._save_as_template(
+            template = await self._save_as_template(
                 organization_id, output, lead, content, actor,
                 subject=final_subject, body_html=final_body_html, body_text=final_body_text,
                 template_name=template_name,
@@ -301,6 +302,7 @@ class EmailGenerationService:
             to_email=lead.email, to_name=lead.full_name,
             subject=final_subject, body_html=final_body_html, body_text=final_body_text,
             current_status=EmailStatusEnum.DRAFT, ai_generated=True,
+            email_template_id=template.id if template else None,
             personalization_data={"ai_output_id": str(output.id), "ai_job_id": str(output.job_id)},
         )
 

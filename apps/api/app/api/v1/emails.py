@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_permission
 from app.database.session import get_db
 from app.models.identity.models import User
+from app.repositories.email_event_repository import EmailEventRepository
 from app.repositories.email_repository import EmailRepository
 from app.schemas.common import ApiResponse
 from app.schemas.email_sending import (
@@ -21,7 +22,10 @@ from app.schemas.email_sending import (
     OutboxEmailResponse,
 )
 from app.schemas.email_serializers import serialize_outbox_email
+from app.schemas.email_tracking import EmailEventResponse, EmailTimelineResponse
+from app.schemas.email_tracking_serializers import serialize_email_event, serialize_email_timeline
 from app.services.email.email_sending_service import EmailSendingService
+from app.services.email.email_tracking_service import EmailTrackingService
 
 router = APIRouter(prefix="/emails", tags=["emails"])
 
@@ -42,8 +46,10 @@ async def list_outbox(
     emails, total = await EmailRepository(db).list_outbox(
         user.organization_id, status=status_filter, search=search, page=page, page_size=page_size
     )
+    bounced_or_spam_ids = [e.id for e in emails if e.current_status in ("bounced", "spam")]
+    reasons = await EmailEventRepository(db).get_latest_reasons(bounced_or_spam_ids)
     return ApiResponse(
-        data=[serialize_outbox_email(e) for e in emails],
+        data=[serialize_outbox_email(e, bounce_reason=reasons.get(e.id)) for e in emails],
         meta={"page": page, "page_size": page_size, "total": total},
     )
 
@@ -73,3 +79,25 @@ async def preview_email(
 ) -> ApiResponse[EmailPreviewResponse]:
     preview = await EmailSendingService(db).preview(user.organization_id, email_id)
     return ApiResponse(data=EmailPreviewResponse(**preview))
+
+
+@router.get("/{email_id}/events", response_model=ApiResponse[list[EmailEventResponse]])
+async def list_email_events(
+    email_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[EmailEventResponse]]:
+    events = await EmailTrackingService(db).get_events(email_id, user.organization_id)
+    return ApiResponse(data=[serialize_email_event(e) for e in events])
+
+
+@router.get("/{email_id}/timeline", response_model=ApiResponse[EmailTimelineResponse])
+async def get_email_timeline(
+    email_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailTimelineResponse]:
+    timeline = await EmailTrackingService(db).get_timeline(email_id, user.organization_id)
+    return ApiResponse(
+        data=serialize_email_timeline(timeline["email_id"], timeline["current_status"], timeline["events"])
+    )
