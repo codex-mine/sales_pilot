@@ -44,6 +44,7 @@ from app.services.email.email_sender_settings_service import EmailSenderSettings
 from app.services.email.email_tracking_service import EmailTrackingService
 from app.services.email.sender_client import get_sender_client
 from app.services.lead_service import LeadService
+from app.services.lead_suppression import suppress_lead
 from app.services.system_actor import resolve_org_owner
 
 _UNSENDABLE_STATUSES = {"sent", "delivered", "opened", "clicked", "bounced", "spam"}
@@ -457,13 +458,9 @@ class EmailSendingService:
                 system_user = await resolve_org_owner(self.db, organization_id)
             except NotFoundError as exc:
                 raise NotFoundError("This link is invalid or has expired.") from exc
-            await self.lead_service.update(
-                lead, payload=LeadUpdateRequest(status=LeadStatusEnum.UNSUBSCRIBED.value), actor=system_user
-            )
-            await self.audit_log.record(
-                organization_id=organization_id, actor_id=None, actor_email=None,
-                action=AuditActionEnum.UPDATE, resource_type="lead", resource_id=lead.id,
-                changes={"event": "unsubscribe_processed"},
+            await suppress_lead(
+                self.db, lead, status=LeadStatusEnum.UNSUBSCRIBED,
+                audit_event="unsubscribe_processed", actor=system_user,
             )
             await self.db.commit()
         organization = await self.organizations.get_by_id(organization_id)

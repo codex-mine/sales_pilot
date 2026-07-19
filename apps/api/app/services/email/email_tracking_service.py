@@ -37,15 +37,10 @@ from app.schemas.leads import LeadUpdateRequest
 from app.security.tokens import sign_click_url, verify_click_signature
 from app.services.email.email_status_resolver import next_status
 from app.services.lead_service import LeadService
+from app.services.lead_status_resolver import next_lead_status
+from app.services.lead_suppression import suppress_lead
 from app.services.system_actor import resolve_org_owner
 
-# Lead statuses OPENED is allowed to advance from — never downgrade a lead
-# that has already replied, qualified, bounced, etc.
-_LEAD_PRE_OPEN_STATUSES = {
-    LeadStatusEnum.NEW.value, LeadStatusEnum.RESEARCHING.value, LeadStatusEnum.RESEARCH_DONE.value,
-    LeadStatusEnum.EMAIL_GENERATED.value, LeadStatusEnum.CONTACTED.value,
-}
-_SUPPRESSED_LEAD_STATUSES = {LeadStatusEnum.BOUNCED.value, LeadStatusEnum.UNSUBSCRIBED.value}
 
 # Substrings identifying a scanner/prefetch/automated client rather than a
 # real mail client's rendering engine — combined with fast-after-send
@@ -250,10 +245,12 @@ class EmailTrackingService:
         except NotFoundError:
             actor = None
 
-        if actor is not None and event_type == EmailEventTypeEnum.OPENED and lead.status in _LEAD_PRE_OPEN_STATUSES:
-            await self.lead_service.update(
-                lead, payload=LeadUpdateRequest(status=LeadStatusEnum.OPENED.value), actor=actor
-            )
+        if actor is not None and event_type == EmailEventTypeEnum.OPENED:
+            new_lead_status = next_lead_status(lead.status, LeadStatusEnum.OPENED)
+            if new_lead_status != lead.status:
+                await self.lead_service.update(
+                    lead, payload=LeadUpdateRequest(status=new_lead_status), actor=actor
+                )
 
         if actor is not None:
             await self.activities.record(
@@ -348,14 +345,10 @@ class EmailTrackingService:
 
         if is_hard and actor is not None:
             lead = await self.leads.get_by_id(email.lead_id, email.organization_id)
-            if lead is not None and lead.status not in _SUPPRESSED_LEAD_STATUSES:
-                await self.lead_service.update(
-                    lead, payload=LeadUpdateRequest(status=LeadStatusEnum.BOUNCED.value), actor=actor
-                )
-                await self.audit_log.record(
-                    organization_id=email.organization_id, actor_id=None, actor_email=None,
-                    action=AuditActionEnum.UPDATE, resource_type="lead", resource_id=lead.id,
-                    changes={"event": "lead_auto_suppressed", "reason": "hard_bounce"},
+            if lead is not None:
+                await suppress_lead(
+                    self.db, lead, status=LeadStatusEnum.BOUNCED,
+                    audit_event="lead_auto_suppressed", actor=actor, extra_changes={"reason": "hard_bounce"},
                 )
         await self.db.commit()
 
@@ -375,17 +368,13 @@ class EmailTrackingService:
 
         if actor is not None:
             lead = await self.leads.get_by_id(email.lead_id, email.organization_id)
-            if lead is not None and lead.status != LeadStatusEnum.UNSUBSCRIBED.value:
-                await self.lead_service.update(
-                    lead, payload=LeadUpdateRequest(status=LeadStatusEnum.UNSUBSCRIBED.value), actor=actor
-                )
-                # Distinct from "unsubscribe_processed" (module 07) — a spam
-                # complaint is not a self-service unsubscribe click, and the
-                # two must stay tellable-apart in the audit trail.
-                await self.audit_log.record(
-                    organization_id=email.organization_id, actor_id=None, actor_email=None,
-                    action=AuditActionEnum.UPDATE, resource_type="lead", resource_id=lead.id,
-                    changes={"event": "lead_auto_suppressed", "reason": "spam_complaint"},
+            if lead is not None:
+                # Distinct audit reason from "unsubscribe_processed" (module
+                # 07) — a spam complaint is not a self-service unsubscribe
+                # click, and the two must stay tellable-apart in the trail.
+                await suppress_lead(
+                    self.db, lead, status=LeadStatusEnum.UNSUBSCRIBED,
+                    audit_event="lead_auto_suppressed", actor=actor, extra_changes={"reason": "spam_complaint"},
                 )
         await self.db.commit()
 

@@ -5,7 +5,23 @@
       "Bash(.venv/Scripts/python.exe -m alembic history)",
       "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_email_sending.py -q)",
       "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d ai_sales_agent_test -c \"ALTER TABLE emails ADD COLUMN IF NOT EXISTS send_error TEXT; ALTER TABLE emails ADD COLUMN IF NOT EXISTS send_retry_count INTEGER NOT NULL DEFAULT 0;\")",
-      "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_research.py app/tests/test_email_generation.py app/tests/test_companies.py app/tests/test_leads.py app/tests/test_rbac.py app/tests/test_organizations.py -q)"
+      "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_research.py app/tests/test_email_generation.py app/tests/test_companies.py app/tests/test_leads.py app/tests/test_rbac.py app/tests/test_organizations.py -q)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(grep -n \"owner_id\" apps/api/app/schemas/leads.py apps/api/../api/app/schemas/leads.py 2>/dev/null; grep -n \"class LeadCreateRequest\" -A 20 apps/api/app/schemas/leads.py)",
+      "Read(//m/advanced/codexmine/projects/sales_pilot/apps/api/apps/api/app/schemas/**)",
+      "Bash(export DATABASE_URL=\"postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/ai_sales_agent_test\")",
+      "Bash(.venv/Scripts/python.exe -m pytest app/tests/test_inbox.py -x -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest app/tests/ -q)",
+      "Bash(curl -s -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3001/)",
+      "Bash(curl -s -o /dev/null -w \"/login -> %{http_code}\\\\n\" http://localhost:3001/login)",
+      "Bash(curl -s -o /dev/null -w \"/inbox -> %{http_code}\\\\n\" http://localhost:3001/inbox)",
+      "Bash(export MSYS_NO_PATHCONV=1)",
+      "Bash(curl -s -o /dev/null -w \"root -> %{http_code}\\\\n\" \"http://localhost:3001/\")",
+      "Bash(curl -s -o /dev/null -w \"login -> %{http_code}\\\\n\" \"http://localhost:3001/login\")",
+      "Bash(curl -s -o /dev/null -w \"inbox -> %{http_code}\\\\n\" \"http://localhost:3001/inbox\")",
+      "Bash(command -v chromium-cli)",
+      "Bash(command -v npx)",
+      "Bash(curl -s -o /dev/null -w \"postgres check via pg_isready not available, trying psql\\\\n\")"
     ]
   }
 }

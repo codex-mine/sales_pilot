@@ -9,6 +9,7 @@ from app.api.v1 import (
     email_templates,
     emails,
     health,
+    inbox,
     leads,
     organizations,
     track,
@@ -29,4 +30,5 @@ router.include_router(unsubscribe.router)
 router.include_router(track.router)
 router.include_router(webhooks.router)
 router.include_router(analytics.router)
+router.include_router(inbox.router)
 router.include_router(health.router)

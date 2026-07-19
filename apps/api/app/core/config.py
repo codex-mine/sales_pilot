@@ -159,6 +159,13 @@ class Settings(BaseSettings):
     # as one open (mail clients re-fetch on scroll/re-render).
     email_open_dedupe_window_seconds: int = 300
 
+    # ─── Inbox (Communication -> Inbound Reply Ingestion & Classification) ──────
+    # Password half of the HTTP Basic Auth credential Postmark's real Inbound
+    # Webhook is configured with (set on the webhook URL in Postmark's
+    # dashboard) — unset means the "postmark" inbound provider is rejected
+    # outright rather than silently accepting unauthenticated requests.
+    inbound_email_basic_auth_password: str | None = None
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value):

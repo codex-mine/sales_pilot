@@ -28,6 +28,12 @@ class OrganizationRepository:
     async def get_by_slug(self, slug: str) -> Organization | None:
         return await self.db.scalar(select(Organization).where(Organization.slug == slug))
 
+    async def get_by_domain(self, domain: str) -> Organization | None:
+        """Fallback tenant resolution for the Inbox module's inbound-reply
+        webhook when the primary correspondence match (Email to/from
+        pairing) doesn't find a prior sent Email to anchor to."""
+        return await self.db.scalar(select(Organization).where(func.lower(Organization.domain) == domain.lower()))
+
     async def generate_unique_slug(self, name: str) -> str:
         base = slugify(name)
         slug = base

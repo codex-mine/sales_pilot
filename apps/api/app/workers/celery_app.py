@@ -20,9 +20,12 @@ Queues:
 - `metrics` — Email Tracking analytics aggregation
   (app/workers/email_metrics_tasks.py). One hourly Celery-beat task per
   worker cycle; isolated so a slow aggregation pass never delays sends.
+- `inbox` — Inbox reply-classification finalize (app/workers/inbox_tasks.py).
+  Same poll-then-finalize shape as `research`/`email`, applying
+  classification side effects once the `ai`-queue job completes.
 
 Run a worker locally with:
-  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,celery
+  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,celery
 Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
@@ -45,6 +48,7 @@ celery_app.conf.update(
         "email.*": {"queue": "email"},
         "sending.*": {"queue": "sending"},
         "metrics.*": {"queue": "metrics"},
+        "inbox.*": {"queue": "inbox"},
     },
     task_time_limit=get_settings().ai_job_timeout_seconds * 2,
     task_soft_time_limit=get_settings().ai_job_timeout_seconds,
@@ -70,4 +74,5 @@ from app.workers import ai_tasks  # noqa: E402,F401
 from app.workers import email_tasks  # noqa: E402,F401
 from app.workers import email_metrics_tasks  # noqa: E402,F401
 from app.workers import email_sending_tasks  # noqa: E402,F401
+from app.workers import inbox_tasks  # noqa: E402,F401
 from app.workers import research_tasks  # noqa: E402,F401

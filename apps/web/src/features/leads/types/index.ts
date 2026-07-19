@@ -3,11 +3,12 @@ import type { AIJobResponse } from "@/features/ai/types";
 // Mirrors the backend's app/schemas/leads.py exactly (snake_case, same field names).
 
 // RESEARCHING / RESEARCH_DONE / EMAIL_GENERATED were reserved on the backend
-// LeadStatusEnum for the AI Research and Email Generation modules — now that
-// both exist, they're included here too.
+// LeadStatusEnum for the AI Research and Email Generation modules; OPENED /
+// BOUNCED / UNSUBSCRIBED for Email Sending & Tracking; REPLIED / UNQUALIFIED
+// for the Inbox module — all now write these statuses, so they're included here too.
 export const LEAD_STATUS_CHOICES = [
-  "new", "researching", "research_done", "email_generated", "contacted", "qualified", "interested",
-  "demo_scheduled", "proposal", "negotiation", "won", "lost",
+  "new", "researching", "research_done", "email_generated", "contacted", "opened", "replied", "qualified",
+  "interested", "unqualified", "demo_scheduled", "proposal", "negotiation", "won", "lost", "bounced", "unsubscribed",
 ] as const;
 export type LeadStatus = (typeof LEAD_STATUS_CHOICES)[number];
 
@@ -17,13 +18,18 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   research_done: "Research Complete",
   email_generated: "Email Generated",
   contacted: "Contacted",
+  opened: "Opened",
+  replied: "Replied",
   qualified: "Qualified",
   interested: "Interested",
+  unqualified: "Unqualified",
   demo_scheduled: "Meeting Scheduled",
   proposal: "Proposal Sent",
   negotiation: "Negotiation",
   won: "Won",
   lost: "Lost",
+  bounced: "Bounced",
+  unsubscribed: "Unsubscribed",
 };
 
 export const LEAD_SOURCE_CHOICES = [

@@ -13,9 +13,8 @@ from app.models.enums import LeadStatusEnum
 # additive/display-layer. RESEARCHING / RESEARCH_DONE / EMAIL_GENERATED /
 # UNSUBSCRIBED / OPENED / BOUNCED were reserved above for the AI Research,
 # Email Generation, Email Sending, and Email Tracking modules — each sets
-# its status via the same validated LeadService.update() path, so they're
-# included here now that all four exist. REPLIED/UNQUALIFIED remain reserved
-# for module 09 (Reply Handling) until something writes them.
+# its status via the same validated LeadService.update() path; REPLIED /
+# UNQUALIFIED are now written the same way by the Inbox module (module 09).
 LEAD_STATUS_CHOICES: list[str] = [
     LeadStatusEnum.NEW.value,
     LeadStatusEnum.RESEARCHING.value,
@@ -23,8 +22,10 @@ LEAD_STATUS_CHOICES: list[str] = [
     LeadStatusEnum.EMAIL_GENERATED.value,
     LeadStatusEnum.CONTACTED.value,
     LeadStatusEnum.OPENED.value,
+    LeadStatusEnum.REPLIED.value,
     LeadStatusEnum.QUALIFIED.value,
     LeadStatusEnum.INTERESTED.value,
+    LeadStatusEnum.UNQUALIFIED.value,
     LeadStatusEnum.DEMO_SCHEDULED.value,
     LeadStatusEnum.PROPOSAL.value,
     LeadStatusEnum.NEGOTIATION.value,

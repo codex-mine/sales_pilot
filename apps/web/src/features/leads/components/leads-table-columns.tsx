@@ -20,13 +20,18 @@ const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" |
   researching: "info",
   research_done: "primary",
   contacted: "primary",
+  opened: "primary",
+  replied: "primary",
   qualified: "primary",
   interested: "primary",
+  unqualified: "danger",
   demo_scheduled: "warning",
   proposal: "warning",
   negotiation: "warning",
   won: "success",
   lost: "danger",
+  bounced: "danger",
+  unsubscribed: "danger",
 };
 
 export interface LeadsTableActions {

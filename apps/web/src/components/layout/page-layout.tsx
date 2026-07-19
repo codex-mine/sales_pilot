@@ -7,7 +7,7 @@ export interface PageLayoutProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /** Standard page body wrapper: a Container with the page's consistent top/bottom padding. Use inside AppLayout's `children`. */
-export function PageLayout({ containerSize = "xl", className, children, ...props }: PageLayoutProps): React.ReactElement {
+export function PageLayout({ containerSize = "full", className, children, ...props }: PageLayoutProps): React.ReactElement {
   return (
     <Container size={containerSize} className={cn("py-8", className)} {...props}>
       {children}

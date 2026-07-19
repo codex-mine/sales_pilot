@@ -13,6 +13,7 @@ this module is the only place that branches on provider name, mirroring
 `sender_client.py`'s single-dispatch-point shape.
 """
 
+import base64
 import hashlib
 import hmac
 
@@ -50,4 +51,33 @@ def verify_webhook_signature(provider: str, body: bytes, headers: dict[str, str]
     pass `dict(request.headers)` which lower-cases automatically)."""
     if provider == "generic":
         return _verify_generic_hmac(body, headers)
+    return False
+
+
+def _verify_postmark_basic_auth(headers: dict[str, str]) -> bool:
+    """Postmark's real Inbound Webhook authenticates via HTTP Basic Auth on
+    the configured webhook URL, not a body signature — this checks the
+    `Authorization: Basic ...` header against the configured credential."""
+    settings = get_settings()
+    if not settings.inbound_email_basic_auth_password:
+        return False
+    auth_header = headers.get("authorization", "")
+    if not auth_header.startswith("Basic "):
+        return False
+    try:
+        decoded = base64.b64decode(auth_header[len("Basic "):]).decode()
+        _username, _, password = decoded.partition(":")
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return hmac.compare_digest(password, settings.inbound_email_basic_auth_password)
+
+
+def verify_inbound_webhook_auth(provider: str, body: bytes, headers: dict[str, str]) -> bool:
+    """The inbound-reply counterpart to `verify_webhook_signature` — same
+    single-dispatch-point shape, kept in this module rather than a second
+    one since "generic" reuses the exact same HMAC scheme either direction."""
+    if provider == "generic":
+        return _verify_generic_hmac(body, headers)
+    if provider == "postmark":
+        return _verify_postmark_basic_auth(headers)
     return False
