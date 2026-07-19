@@ -5,6 +5,7 @@ from app.api.v1 import (
     analytics,
     auth,
     book,
+    campaigns,
     companies,
     email_sender_settings,
     email_templates,
@@ -37,4 +38,8 @@ router.include_router(inbox.router)
 router.include_router(integrations.router)
 router.include_router(meetings.router)
 router.include_router(book.router)
+router.include_router(campaigns.campaigns_router)
+router.include_router(campaigns.sequences_router)
+router.include_router(campaigns.sequence_steps_router)
+router.include_router(campaigns.campaign_leads_router)
 router.include_router(health.router)

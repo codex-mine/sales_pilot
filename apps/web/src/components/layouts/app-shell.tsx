@@ -17,6 +17,7 @@ import {
   Mail,
   Menu,
   MessagesSquare,
+  Rocket,
   Settings,
   Settings2,
   Shield,
@@ -68,6 +69,7 @@ const navigation: NavEntry[] = [
   { href: "/outreach/outbox", label: "Outbox", icon: Inbox },
   { href: "/inbox", label: "Inbox", icon: MessagesSquare },
   { href: "/meetings", label: "Meetings", icon: CalendarDays },
+  { href: "/campaigns", label: "Campaigns", icon: Rocket },
   {
     label: "AI",
     icon: Bot,
@@ -113,12 +115,13 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
             href={entry.href}
             label={entry.label}
             icon={entry.icon}
-            // "Leads" and "Companies" have sub-routes (/leads/[id],
-            // /leads/import, /companies/[id], ...) without their own nav
-            // entries, so they need prefix matching to stay highlighted
-            // there; every other item maps 1:1 to a literal href.
+            // "Leads", "Companies", and "Campaigns" have sub-routes
+            // (/leads/[id], /leads/import, /companies/[id], /campaigns/[id],
+            // ...) without their own nav entries, so they need prefix
+            // matching to stay highlighted there; every other item maps 1:1
+            // to a literal href.
             isActive={
-              entry.href === "/leads" || entry.href === "/companies"
+              entry.href === "/leads" || entry.href === "/companies" || entry.href === "/campaigns"
                 ? pathname.startsWith(entry.href)
                 : pathname === entry.href
             }

@@ -298,6 +298,18 @@ class EmailSendingService:
             changes={"event": "email_sent", "external_message_id": result.external_message_id},
         )
         await self.db.commit()
+
+        if email.campaign_lead_id:
+            # Campaigns module hook: resumes a sequence stalled at a DRAFT
+            # awaiting approval (module 11's requires_approval=True path), and
+            # is the same call the scheduler's own full-automation send path
+            # uses right after this same `send_now()` succeeds — one place
+            # "what's next" is computed either way. Deferred import avoids a
+            # circular import (campaigns services call back into this one).
+            from app.services.campaigns.campaign_scheduler_service import CampaignSchedulerService
+
+            await CampaignSchedulerService(self.db).advance_after_send(email.campaign_lead_id)
+
         return await self.require_email(email.id, email.organization_id)
 
     async def _handle_send_failure(
