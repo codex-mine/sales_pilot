@@ -166,6 +166,22 @@ class Settings(BaseSettings):
     # outright rather than silently accepting unauthenticated requests.
     inbound_email_basic_auth_password: str | None = None
 
+    # ─── Meeting Scheduling & Calendar Booking (Communication -> Meetings) ──────
+    # Google Calendar OAuth (authorization-code flow). A user connects their own
+    # calendar (Integration.user_id set — a personal integration, not org-level).
+    # Unset client_id/secret means "Connect Google Calendar" surfaces a clear
+    # "not configured" error rather than a broken redirect.
+    google_calendar_client_id: str | None = None
+    google_calendar_client_secret: str | None = None
+    google_calendar_redirect_uri: str = "http://localhost:8000/api/v1/integrations/google-calendar/callback"
+    # How many upcoming business days propose_times() scans for open slots, and
+    # the business-hours window applied per day (owner's local time is not
+    # modeled yet — a fixed default window is sufficient scope for V1, no new
+    # availability-rules table).
+    meeting_proposal_window_days: int = 10
+    meeting_business_hours_start: int = 9
+    meeting_business_hours_end: int = 17
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value):

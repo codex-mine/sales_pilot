@@ -8,6 +8,7 @@ import {
   Bot,
   Briefcase,
   Building2,
+  CalendarDays,
   FileText,
   History,
   Inbox,
@@ -66,6 +67,7 @@ const navigation: NavEntry[] = [
   { href: "/email-templates", label: "Email Templates", icon: Mail },
   { href: "/outreach/outbox", label: "Outbox", icon: Inbox },
   { href: "/inbox", label: "Inbox", icon: MessagesSquare },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays },
   {
     label: "AI",
     icon: Bot,
@@ -83,6 +85,7 @@ const navigation: NavEntry[] = [
       { href: "/settings", label: "Profile", icon: UserIcon },
       { href: "/settings/security", label: "Security", icon: Shield },
       { href: "/settings/organization", label: "Organization", icon: Building2 },
+      { href: "/settings/calendar", label: "Calendar", icon: CalendarDays },
     ],
   },
 ];

@@ -95,6 +95,8 @@ export {
   MessagesSquare,
   Bell,
   BellOff,
+  Video,
+  VideoOff,
 
   // Business/data
   BarChart3,

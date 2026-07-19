@@ -351,6 +351,9 @@ class PaymentStatusEnum(str, enum.Enum):
 class NotificationTypeEnum(str, enum.Enum):
     NEW_REPLY = "new_reply"
     MEETING_BOOKED = "meeting_booked"
+    # Column is a plain String(50) (see Notification model), so this member
+    # is migration-free — same pattern as IntegrationTypeEnum's later entries.
+    MEETING_REMINDER = "meeting_reminder"
     EMAIL_FAILED = "email_failed"
     AI_RESEARCH_DONE = "ai_research_done"
     AI_EMAIL_GENERATED = "ai_email_generated"

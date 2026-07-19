@@ -161,6 +161,41 @@ class EmailSendError(AppError):
     default_message = "The email could not be sent."
 
 
+# ─── Calendar / meeting scheduling ─────────────────────────────────────────────
+
+class CalendarProviderError(AppError):
+    """Uniform wrapper for every calendar-provider-SDK failure, mirroring
+    `LLMProviderError`/`EmailSendError`'s role — raised only by
+    `app.services.calendar.calendar_client` so callers never branch on
+    provider-specific exception types."""
+
+    status_code = 502
+    error_code = "calendar_provider_error"
+    default_message = "The calendar request failed."
+
+
+class CalendarNotConnectedError(AppError):
+    """Raised when an action needs a connected calendar (proposing times,
+    confirming a booking) but the meeting owner has no active Google Calendar
+    Integration row — distinct from a generic provider failure so the
+    frontend can prompt reconnection specifically."""
+
+    status_code = 400
+    error_code = "calendar_not_connected"
+    default_message = "Connect a Google Calendar before proposing times for this meeting."
+
+
+class SlotUnavailableError(AppError):
+    """Raised when a chosen booking slot fails re-validation at confirm time
+    (the owner's calendar changed between proposal and the prospect's pick) —
+    distinct from a generic validation error so the public booking page can
+    show 'pick another time' rather than a generic failure message."""
+
+    status_code = 409
+    error_code = "slot_unavailable"
+    default_message = "This time slot is no longer available. Please choose another."
+
+
 class RecipientSuppressedError(AppError):
     """Raised when a synchronous send attempt targets a suppressed
     recipient (unsubscribed, or a prior hard bounce to the same address in

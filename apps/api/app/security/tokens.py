@@ -136,6 +136,29 @@ def create_unsubscribe_token(lead_id: str, organization_id: str) -> str:
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_booking_token(meeting_id: str, organization_id: str) -> str:
+    """The public meeting-booking link's token — same shape and reasoning as
+    `create_unsubscribe_token` (a long-lived, self-describing JWT rather than
+    an opaque short-lived one, since a prospect may open the link days after
+    it was sent): reuses `jwt_secret_key` and the same
+    `decode_token(..., expected_type="booking")` verification path, no new
+    secret or decode mechanism. Expires in 30 days — long enough for a
+    prospect to act, short enough that a stale, unactioned proposal doesn't
+    stay bookable indefinitely."""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": meeting_id,
+        "organization_id": organization_id,
+        "type": "booking",
+        "iss": settings.jwt_issuer,
+        "iat": now,
+        "exp": now + timedelta(days=30),
+        "jti": _new_jti(),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def sign_click_url(tracking_pixel_id: str, url: str) -> str:
     """Signs a click-tracking redirect target so `/track/click/{id}` can't be
     used as an open redirector for arbitrary attacker-supplied URLs — reuses

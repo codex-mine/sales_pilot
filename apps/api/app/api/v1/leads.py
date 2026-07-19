@@ -20,6 +20,8 @@ from app.schemas.ai_serializers import serialize_job
 from app.schemas.common import ApiResponse
 from app.schemas.inbox import ConversationListItemResponse
 from app.schemas.inbox_serializers import serialize_conversation_list_item
+from app.schemas.meeting_serializers import serialize_meeting
+from app.schemas.meetings import CreateMeetingRequest, MeetingResponse
 from app.schemas.email_generation import (
     BulkEmailGenerationResponse,
     BulkLeadEmailGenerationRequest,
@@ -62,6 +64,7 @@ from app.schemas.research_serializers import serialize_prospect_analysis
 from app.services.ai.email_generation_service import EmailGenerationService
 from app.services.ai.prospect_analysis_service import ProspectAnalysisService
 from app.services.attachment_service import AttachmentService
+from app.services.communication.meeting_service import MeetingService
 from app.services.email.email_sending_service import EmailSendingService
 from app.services.lead_import_export_service import LeadImportExportService
 from app.services.lead_service import LeadService
@@ -636,6 +639,37 @@ async def list_lead_conversations(
     await LeadService(db).require_lead(lead_id, user.organization_id)
     conversations = await ConversationRepository(db).list_for_lead(lead_id, user.organization_id)
     return ApiResponse(data=[serialize_conversation_list_item(c) for c in conversations])
+
+
+# ─── Meetings ───────────────────────────────────────────────────────────────────
+
+
+@router.get("/{lead_id}/meetings", response_model=ApiResponse[list[MeetingResponse]])
+async def list_lead_meetings(
+    lead_id: uuid.UUID,
+    user: User = Depends(require_permission("leads", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[MeetingResponse]]:
+    meetings = await MeetingService(db).list_for_lead(lead_id, user.organization_id)
+    return ApiResponse(data=[serialize_meeting(m) for m in meetings])
+
+
+@router.post(
+    "/{lead_id}/meetings", response_model=ApiResponse[MeetingResponse], status_code=status.HTTP_201_CREATED
+)
+async def create_lead_meeting(
+    lead_id: uuid.UUID,
+    payload: CreateMeetingRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[MeetingResponse]:
+    owner_id = uuid.UUID(payload.owner_id) if payload.owner_id else user.id
+    source_message_id = uuid.UUID(payload.source_message_id) if payload.source_message_id else None
+    meeting = await MeetingService(db).create_meeting(
+        user.organization_id, lead_id, owner_id, payload.title, payload.duration_minutes,
+        actor=user, description=payload.description, source_message_id=source_message_id,
+    )
+    return ApiResponse(data=serialize_meeting(meeting), message="Meeting created.")
 
 
 # ─── Attachments ────────────────────────────────────────────────────────────────

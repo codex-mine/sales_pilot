@@ -23,9 +23,12 @@ Queues:
 - `inbox` — Inbox reply-classification finalize (app/workers/inbox_tasks.py).
   Same poll-then-finalize shape as `research`/`email`, applying
   classification side effects once the `ai`-queue job completes.
+- `meetings` — Meeting Scheduling & Calendar Booking internal reminders
+  (app/workers/meeting_tasks.py). One periodic Celery-beat task per worker
+  cycle, isolated so it never competes with the other queues.
 
 Run a worker locally with:
-  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,celery
+  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,meetings,celery
 Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
@@ -49,6 +52,7 @@ celery_app.conf.update(
         "sending.*": {"queue": "sending"},
         "metrics.*": {"queue": "metrics"},
         "inbox.*": {"queue": "inbox"},
+        "meetings.*": {"queue": "meetings"},
     },
     task_time_limit=get_settings().ai_job_timeout_seconds * 2,
     task_soft_time_limit=get_settings().ai_job_timeout_seconds,
@@ -63,6 +67,10 @@ celery_app.conf.update(
             "task": "metrics.aggregate_email_metrics",
             "schedule": 3600.0,
         },
+        "send-meeting-reminders": {
+            "task": "meetings.send_reminders",
+            "schedule": 900.0,
+        },
     },
 )
 
@@ -75,4 +83,5 @@ from app.workers import email_tasks  # noqa: E402,F401
 from app.workers import email_metrics_tasks  # noqa: E402,F401
 from app.workers import email_sending_tasks  # noqa: E402,F401
 from app.workers import inbox_tasks  # noqa: E402,F401
+from app.workers import meeting_tasks  # noqa: E402,F401
 from app.workers import research_tasks  # noqa: E402,F401

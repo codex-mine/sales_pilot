@@ -4,13 +4,16 @@ from app.api.v1 import (
     ai,
     analytics,
     auth,
+    book,
     companies,
     email_sender_settings,
     email_templates,
     emails,
     health,
     inbox,
+    integrations,
     leads,
+    meetings,
     organizations,
     track,
     unsubscribe,
@@ -31,4 +34,7 @@ router.include_router(track.router)
 router.include_router(webhooks.router)
 router.include_router(analytics.router)
 router.include_router(inbox.router)
+router.include_router(integrations.router)
+router.include_router(meetings.router)
+router.include_router(book.router)
 router.include_router(health.router)
