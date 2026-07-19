@@ -11,8 +11,13 @@ import { CheckCircle2, Clock3, Eye, Send, Sparkles, X } from "@/icons";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
 import { useCancelScheduledEmail, useScheduleEmail, useSendEmail } from "../hooks/use-lead-sending";
 import type { EmailResponse } from "../types";
+import { EmailDeliveryTimeline } from "./email-delivery-timeline";
 import { EmailPreviewDialog } from "./email-preview-dialog";
 import { EmailScheduleDialog } from "./email-schedule-dialog";
+
+const _DISPATCHED_STATUSES = new Set([
+  "sending", "sent", "delivered", "opened", "clicked", "bounced", "failed", "spam",
+]);
 
 export interface EmailDraftCardProps {
   leadId: string;
@@ -87,6 +92,12 @@ export function EmailDraftCard({ leadId, email }: EmailDraftCardProps): React.Re
           className="rounded-lg border border-border bg-muted/30 p-3 text-body-sm"
           dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(email.body_html) }}
         />
+
+        {_DISPATCHED_STATUSES.has(email.current_status) && (
+          <div className="rounded-lg border border-border p-3">
+            <EmailDeliveryTimeline emailId={email.id} />
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <Button size="sm" variant="ghost" onClick={() => setPreviewOpen(true)}>

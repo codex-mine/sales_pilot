@@ -384,9 +384,31 @@ export interface OutboxEmailResponse {
   ai_generated: boolean;
   send_error: string | null;
   send_retry_count: number;
+  bounce_reason: string | null;
   scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
+}
+
+// ─── Email Tracking (Communication -> Open/Click Tracking & Delivery Events) ────
+
+export interface EmailEventResponse {
+  id: string;
+  email_id: string;
+  event_type: string;
+  occurred_at: string;
+  provider: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  click_url: string | null;
+  bounce_reason: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface EmailTimelineResponse {
+  email_id: string;
+  current_status: string;
+  events: EmailEventResponse[];
 }
 
 export interface BulkSendRequest {

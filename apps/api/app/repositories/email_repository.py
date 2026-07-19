@@ -26,6 +26,20 @@ class EmailRepository:
             .where(Email.id == email_id, Email.organization_id == organization_id)
         )
 
+    async def get_by_tracking_pixel_id(self, tracking_pixel_id: str) -> Email | None:
+        """No `organization_id` scoping — this is resolved from a public,
+        unauthenticated pixel/click request; the tracking_pixel_id itself
+        (an unguessable token, generated at send time) IS the tenant
+        resolution, exactly like the unsubscribe token's `sub` claim."""
+        return await self.db.scalar(select(Email).where(Email.tracking_pixel_id == tracking_pixel_id))
+
+    async def get_by_external_message_id(self, external_message_id: str) -> Email | None:
+        """Resolves a webhook payload's message reference back to the Email
+        row — also unscoped by organization for the same reason as
+        `get_by_tracking_pixel_id` (the caller is the sending provider, not
+        an authenticated user)."""
+        return await self.db.scalar(select(Email).where(Email.external_message_id == external_message_id))
+
     async def get_for_update(self, email_id: uuid.UUID, organization_id: uuid.UUID) -> Email | None:
         """Row-locked read for the send path — guards against two concurrent
         requests (or a request racing the scheduler) double-sending the same

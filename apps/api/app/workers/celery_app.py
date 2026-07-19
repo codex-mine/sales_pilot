@@ -17,10 +17,13 @@ Queues:
   A Celery-beat periodic task finds due SCHEDULED emails and fans out a
   per-row send task; isolated in its own queue so a burst of outbound sends
   never competes with LLM/orchestration work on the other queues.
+- `metrics` — Email Tracking analytics aggregation
+  (app/workers/email_metrics_tasks.py). One hourly Celery-beat task per
+  worker cycle; isolated so a slow aggregation pass never delays sends.
 
 Run a worker locally with:
-  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,celery
-Run beat (for scheduled sends) alongside it with:
+  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,celery
+Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
 
@@ -41,6 +44,7 @@ celery_app.conf.update(
         "research.*": {"queue": "research"},
         "email.*": {"queue": "email"},
         "sending.*": {"queue": "sending"},
+        "metrics.*": {"queue": "metrics"},
     },
     task_time_limit=get_settings().ai_job_timeout_seconds * 2,
     task_soft_time_limit=get_settings().ai_job_timeout_seconds,
@@ -51,6 +55,10 @@ celery_app.conf.update(
             "task": "sending.dispatch_due_scheduled_emails",
             "schedule": 60.0,
         },
+        "aggregate-email-metrics": {
+            "task": "metrics.aggregate_email_metrics",
+            "schedule": 3600.0,
+        },
     },
 )
 
@@ -60,5 +68,6 @@ celery_app.autodiscover_tasks(["app.workers"])
 # always has them registered even if autodiscovery misses a packaging edge.
 from app.workers import ai_tasks  # noqa: E402,F401
 from app.workers import email_tasks  # noqa: E402,F401
+from app.workers import email_metrics_tasks  # noqa: E402,F401
 from app.workers import email_sending_tasks  # noqa: E402,F401
 from app.workers import research_tasks  # noqa: E402,F401

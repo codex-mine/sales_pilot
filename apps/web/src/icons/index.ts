@@ -40,6 +40,7 @@ export {
   X,
   Check,
   CheckCheck,
+  MousePointerClick,
   Search,
   Filter,
   SlidersHorizontal,

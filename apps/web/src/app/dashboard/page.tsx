@@ -1,13 +1,14 @@
 "use client";
 
 import { LayoutDashboard, MailWarning } from "@/icons";
-import { AuthGuard } from "@/components/guards";
+import { AuthGuard, PermissionGuard } from "@/components/guards";
 import { AppShell } from "@/components/layouts/app-shell";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmailPerformanceWidget } from "@/features/analytics/components/email-performance-widget";
 import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
 import { authService } from "@/features/auth/services/auth.service";
 import { useMutation } from "@tanstack/react-query";
@@ -44,10 +45,16 @@ function DashboardContent(): React.ReactElement {
         </Alert>
       )}
 
+      <PermissionGuard permission="analytics.read" fallback={<></>}>
+        <div className="mb-6">
+          <EmailPerformanceWidget />
+        </div>
+      </PermissionGuard>
+
       <EmptyState
         icon={LayoutDashboard}
-        title="Your dashboard is ready"
-        description="Campaigns, leads, and AI insights will appear here as those features come online."
+        title="More of your dashboard is on the way"
+        description="Campaigns and AI insights will appear here as those features come online."
       />
     </PageLayout>
   );
