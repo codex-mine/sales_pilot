@@ -55,6 +55,10 @@ import {
 import { TopNav } from "@/components/ui/top-nav";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useConversations } from "@/features/inbox/hooks/use-conversations";
+import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/features/notifications/hooks/use-notification-mutations";
+import { useNotifications } from "@/features/notifications/hooks/use-notifications";
+import { useUnreadNotificationCount } from "@/features/notifications/hooks/use-unread-notification-count";
+import type { NotificationResponse } from "@/features/notifications/types";
 import { getInitials } from "@/lib/utils";
 
 type NavEntry =
@@ -70,6 +74,7 @@ const navigation: NavEntry[] = [
   { href: "/inbox", label: "Inbox", icon: MessagesSquare },
   { href: "/meetings", label: "Meetings", icon: CalendarDays },
   { href: "/campaigns", label: "Campaigns", icon: Rocket },
+  { href: "/reports", label: "Reports", icon: FileText },
   {
     label: "AI",
     icon: Bot,
@@ -165,22 +170,73 @@ function MessagesQuickLink(): React.ReactElement {
   );
 }
 
-/** Notification bell — placeholder only for now; no notification feed exists yet. */
+/** Notification bell — recent notifications with unread indicators, "Mark
+ * all read", and click-through to each notification's `action_url` (already
+ * populated by the modules that write these rows: inbox replies, meeting
+ * bookings, campaign approvals/tasks). Unread badge polls per
+ * `useUnreadNotificationCount`. */
 function NotificationsQuickMenu(): React.ReactElement {
+  const router = useRouter();
+  const { count } = useUnreadNotificationCount();
+  const { notifications, isLoading } = useNotifications(false, 1, 8);
+  const { markRead } = useMarkNotificationRead();
+  const { markAllRead, isMarkingAll } = useMarkAllNotificationsRead();
+
+  function handleClick(notification: NotificationResponse): void {
+    if (!notification.is_read) void markRead(notification.id);
+    if (notification.action_url) router.push(notification.action_url);
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className={HEADER_ICON_BUTTON_CLASS} aria-label="Notifications">
+        <button className={HEADER_ICON_BUTTON_CLASS} aria-label={count > 0 ? `Notifications — ${count} unread` : "Notifications"}>
           <Bell className="size-4" />
+          <UnreadCountBadge count={count} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-          <Bell className="size-6 text-muted-foreground" />
-          <p className="text-body-sm text-muted-foreground">Notifications are coming soon.</p>
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+          {count > 0 && (
+            <button
+              type="button"
+              onClick={() => void markAllRead()}
+              disabled={isMarkingAll}
+              className="text-caption text-primary hover:underline disabled:opacity-50"
+            >
+              Mark all read
+            </button>
+          )}
         </div>
+        <DropdownMenuSeparator />
+        {isLoading ? (
+          <div className="px-4 py-8 text-center text-body-sm text-muted-foreground">Loading...</div>
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <Bell className="size-6 text-muted-foreground" />
+            <p className="text-body-sm text-muted-foreground">You&apos;re all caught up.</p>
+          </div>
+        ) : (
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => handleClick(notification)}
+                className="flex w-full flex-col gap-0.5 px-2 py-2 text-left transition-colors hover:bg-muted"
+              >
+                <div className="flex items-center gap-2">
+                  {!notification.is_read && <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
+                  <span className="truncate text-body-sm font-medium text-foreground">{notification.title}</span>
+                </div>
+                {notification.body && (
+                  <p className="line-clamp-2 pl-3.5 text-caption text-muted-foreground">{notification.body}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

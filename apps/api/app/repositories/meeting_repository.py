@@ -67,6 +67,17 @@ class MeetingRepository:
         )
         return list(result), total
 
+    async def status_distribution(self, organization_id: uuid.UUID) -> dict[str, int]:
+        """Live `Meeting.status` GROUP BY for the module 12 nightly aggregation
+        task's meeting-funnel Metric rows — small, indexed table, cheap even
+        unaggregated (same exception as `LeadRepository.status_distribution`)."""
+        rows = await self.db.execute(
+            select(Meeting.status, func.count(Meeting.id))
+            .where(Meeting.organization_id == organization_id)
+            .group_by(Meeting.status)
+        )
+        return {status: count for status, count in rows.all()}
+
     async def list_upcoming_for_reminder(self, window_start: datetime, window_end: datetime) -> list[Meeting]:
         """Confirmed meetings starting within the reminder window — used by
         the Celery beat reminder task. Idempotency (never reminding twice)

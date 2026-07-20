@@ -71,3 +71,23 @@ class ActivityRepository:
             .limit(page_size)
         )
         return list(result), total
+
+    async def list_for_organization(
+        self, organization_id: uuid.UUID, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[Activity], int]:
+        """Org-wide activity feed for the module 12 dashboard's "Recent
+        activity" widget — a small, indexed, LIMIT-bounded read (not a
+        cross-table aggregate scan), so it's fine to read live rather than
+        through the Metric pre-aggregation layer."""
+        total = await self.db.scalar(
+            select(func.count(Activity.id)).where(Activity.organization_id == organization_id)
+        ) or 0
+        result = await self.db.scalars(
+            select(Activity)
+            .options(selectinload(Activity.actor))
+            .where(Activity.organization_id == organization_id)
+            .order_by(Activity.occurred_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result), total

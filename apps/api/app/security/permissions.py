@@ -29,7 +29,10 @@ RESOURCE_ACTIONS: dict[str, tuple[str, ...]] = {
     "companies": ("create", "read", "update", "delete", "export", "bulk"),
     "notes": ("manage",),
     "attachments": ("manage",),
-    "reports": ("read",),
+    # Module 12: reports were read-only (dashboard-embedded); the Reports
+    # module now lets users create/edit/delete/schedule their own saved
+    # reports, so this grows the same way "campaigns" did in module 11.
+    "reports": ("read", "create", "update", "delete"),
     "analytics": ("read",),
     "billing": ("manage",),
     "settings": ("manage",),
@@ -75,8 +78,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[RoleNameEnum, list[tuple[str, str]]] = {
         # Full campaigns CRUD, but not "manage" (sender identity config —
         # OWNER/ADMIN only, see the RESOURCE_ACTIONS comment above).
         ("campaigns", "create"), ("campaigns", "read"), ("campaigns", "update"), ("campaigns", "delete"),
-        *_all("leads", "companies", "notes", "attachments"),
-        ("reports", "read"),
+        *_all("leads", "companies", "notes", "attachments", "reports"),
         ("analytics", "read"),
         # Managers can see AI activity/spend but not reconfigure providers,
         # agents, or prompts (OWNER/ADMIN only, via ai.manage).

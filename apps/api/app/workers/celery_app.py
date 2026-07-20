@@ -33,14 +33,21 @@ Queues:
   `execute_campaign_step` per row — isolated in its own queue since a step
   that waits on AI generation can run considerably longer than this queue's
   usual tasks.
+- `analytics` — Dashboard/Reports Metric aggregation (app/workers/
+  analytics_tasks.py). `aggregate_daily_metrics` runs once daily (01:00 UTC)
+  and writes the pipeline/AI-cost/campaign/meeting Metric rows the module 12
+  dashboard reads; `check_scheduled_reports` runs hourly and delivers any
+  due saved Report — isolated so a slow daily aggregation pass never delays
+  the other queues' usual sub-minute tasks.
 
 Run a worker locally with:
-  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,meetings,campaigns,celery
+  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,meetings,campaigns,analytics,celery
 Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -61,6 +68,7 @@ celery_app.conf.update(
         "inbox.*": {"queue": "inbox"},
         "meetings.*": {"queue": "meetings"},
         "campaigns.*": {"queue": "campaigns"},
+        "analytics.*": {"queue": "analytics"},
     },
     task_time_limit=get_settings().ai_job_timeout_seconds * 2,
     task_soft_time_limit=get_settings().ai_job_timeout_seconds,
@@ -83,6 +91,14 @@ celery_app.conf.update(
             "task": "campaigns.dispatch_due_steps",
             "schedule": 60.0,
         },
+        "aggregate-daily-metrics": {
+            "task": "analytics.aggregate_daily_metrics",
+            "schedule": crontab(hour=1, minute=0),
+        },
+        "check-scheduled-reports": {
+            "task": "analytics.check_scheduled_reports",
+            "schedule": 3600.0,
+        },
     },
 )
 
@@ -91,6 +107,7 @@ celery_app.autodiscover_tasks(["app.workers"])
 # Import task modules explicitly so a worker started with this app instance
 # always has them registered even if autodiscovery misses a packaging edge.
 from app.workers import ai_tasks  # noqa: E402,F401
+from app.workers import analytics_tasks  # noqa: E402,F401
 from app.workers import campaign_scheduler_tasks  # noqa: E402,F401
 from app.workers import email_tasks  # noqa: E402,F401
 from app.workers import email_metrics_tasks  # noqa: E402,F401

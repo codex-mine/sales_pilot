@@ -112,6 +112,7 @@ export {
   Play,
   Pause,
   Workflow,
+  GitBranch,
   Wallet,
   CreditCard,
   Receipt,

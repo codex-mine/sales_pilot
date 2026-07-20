@@ -1,19 +1,18 @@
 "use client";
 
-import { LayoutDashboard, MailWarning } from "@/icons";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { PermissionGuard } from "@/components/guards";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmailPerformanceWidget } from "@/features/analytics/components/email-performance-widget";
+import { MailWarning } from "@/icons";
 import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
 import { authService } from "@/features/auth/services/auth.service";
-import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
 
-function DashboardContent(): React.ReactElement {
+function DashboardPageContent(): React.ReactElement {
   const user = useCurrentUser();
 
   const resendMutation = useMutation({
@@ -45,20 +44,12 @@ function DashboardContent(): React.ReactElement {
       )}
 
       <PermissionGuard permission="analytics.read" fallback={<></>}>
-        <div className="mb-6">
-          <EmailPerformanceWidget />
-        </div>
+        <DashboardContent />
       </PermissionGuard>
-
-      <EmptyState
-        icon={LayoutDashboard}
-        title="More of your dashboard is on the way"
-        description="Campaigns and AI insights will appear here as those features come online."
-      />
     </PageLayout>
   );
 }
 
 export default function DashboardPage(): React.ReactElement {
-  return <DashboardContent />;
+  return <DashboardPageContent />;
 }
