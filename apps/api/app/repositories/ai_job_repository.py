@@ -175,6 +175,30 @@ class AIJobRepository:
             for job_type, count, tokens, cost, latency in rows.all()
         ]
 
+    async def usage_summary_for_window(self, organization_id: uuid.UUID, *, start: datetime) -> list[dict[str, Any]]:
+        """Same rollup as `usage_summary` — an open-ended `created_at >= start`
+        filter, deliberately with NO upper bound. An exclusive upper bound
+        compared against the *application* server's clock is fragile against
+        ordinary app/DB clock skew (a `server_default=func.now()` timestamp
+        can legitimately land a few seconds "ahead" of `datetime.now()` in the
+        calling process), and module 12's nightly task only needs "the
+        trailing 24h as of now," not a precisely bounded window — the daily
+        upsert already makes re-running idempotent regardless."""
+        rows = await self.db.execute(
+            select(
+                AIJob.job_type,
+                func.count(AIJob.id),
+                func.coalesce(func.sum(AIJob.total_tokens), 0),
+                func.coalesce(func.sum(AIJob.cost_usd), 0.0),
+            )
+            .where(AIJob.organization_id == organization_id, AIJob.created_at >= start)
+            .group_by(AIJob.job_type)
+        )
+        return [
+            {"job_type": job_type, "job_count": count, "total_tokens": int(tokens), "cost_usd": round(float(cost), 6)}
+            for job_type, count, tokens, cost in rows.all()
+        ]
+
     async def daily_costs(
         self, organization_id: uuid.UUID, *, since: datetime
     ) -> list[dict[str, Any]]:

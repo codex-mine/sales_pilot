@@ -95,6 +95,8 @@ export {
   MessagesSquare,
   Bell,
   BellOff,
+  Video,
+  VideoOff,
 
   // Business/data
   BarChart3,
@@ -106,6 +108,11 @@ export {
   Sparkles,
   Bot,
   Zap,
+  Rocket,
+  Play,
+  Pause,
+  Workflow,
+  GitBranch,
   Wallet,
   CreditCard,
   Receipt,

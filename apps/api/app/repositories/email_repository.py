@@ -133,6 +133,38 @@ class EmailRepository:
             )
         ) or 0
 
+    async def get_latest_for_lead_in_campaign(self, lead_id: uuid.UUID, campaign_id: uuid.UUID) -> Email | None:
+        """The engagement-state read for the Campaigns module's conditional-
+        skip logic (`{"skip_if": "opened"}`) — the most recent Email this
+        lead received *within this campaign* (not any prior manual send),
+        checked against `email_status_resolver.has_reached`."""
+        from app.models.campaigns.models import CampaignLead
+
+        return await self.db.scalar(
+            select(Email)
+            .join(CampaignLead, CampaignLead.id == Email.campaign_lead_id)
+            .where(CampaignLead.campaign_id == campaign_id, Email.lead_id == lead_id)
+            .order_by(Email.created_at.desc())
+            .limit(1)
+        )
+
+    async def count_sent_today_for_campaign(self, campaign_id: uuid.UUID) -> int:
+        """Campaign.daily_send_limit accounting — additive to (not a
+        replacement for) the org-level `count_sent_today` check; both apply,
+        whichever is stricter effectively wins at send time."""
+        from app.models.campaigns.models import CampaignLead
+
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        return await self.db.scalar(
+            select(func.count(Email.id))
+            .join(CampaignLead, CampaignLead.id == Email.campaign_lead_id)
+            .where(
+                CampaignLead.campaign_id == campaign_id,
+                Email.sent_at.isnot(None),
+                Email.sent_at >= today_start,
+            )
+        ) or 0
+
     async def list_due_scheduled(self, *, limit: int = 100) -> list[Email]:
         """The Celery beat scheduler's query, across all organizations —
         `FOR UPDATE SKIP LOCKED` so multiple workers can process the batch

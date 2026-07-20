@@ -39,6 +39,24 @@ _EVENT_TARGET_STATUS: dict[EmailEventTypeEnum, EmailStatusEnum] = {
 }
 
 
+def has_reached(current: str, milestone: EmailStatusEnum) -> bool:
+    """Whether `current` has reached at least `milestone` in the lifecycle —
+    the engagement-state check the Campaigns module's conditional-skip logic
+    (`{"skip_if": "opened"}`) reuses instead of re-deriving open/click state
+    from EmailEvent rows itself. Terminal statuses (BOUNCED/FAILED/SPAM) never
+    "reached" a lifecycle milestone since they're a separate branch, not a
+    point on the linear order."""
+    try:
+        current_status = EmailStatusEnum(current)
+    except ValueError:
+        return False
+    if current_status in _TERMINAL_STATUSES or milestone not in _LIFECYCLE_ORDER:
+        return False
+    if current_status not in _LIFECYCLE_ORDER:
+        return False
+    return _LIFECYCLE_ORDER.index(current_status) >= _LIFECYCLE_ORDER.index(milestone)
+
+
 def next_status(current: str, event_type: EmailEventTypeEnum) -> str:
     """Returns the `Email.current_status` value that should follow recording
     `event_type`, given the row's `current` status — `current` unchanged if

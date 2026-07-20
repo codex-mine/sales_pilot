@@ -21,6 +21,7 @@ import {
   ArchiveRestore,
   Download,
   Mail,
+  Rocket,
   Send,
   Sparkles,
   Star,
@@ -28,6 +29,7 @@ import {
   Trash2,
   UserCog,
 } from "@/icons";
+import { AddToCampaignDialog } from "@/features/campaigns/components/add-to-campaign-dialog";
 import { useOrganizationMembers } from "@/features/organizations/hooks/use-organization-members";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useBulkLeads } from "../hooks/use-bulk-leads";
@@ -68,6 +70,7 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [assignOwnerLeadIds, setAssignOwnerLeadIds] = useState<string[] | null>(null);
   const [bulkGenerateOpen, setBulkGenerateOpen] = useState(false);
+  const [addToCampaignOpen, setAddToCampaignOpen] = useState(false);
 
   const deleteConfirm = useConfirmDialog();
   const bulkDeleteConfirm = useConfirmDialog();
@@ -242,6 +245,10 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
               <Send className="size-4" />
               Send Approved Emails
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddToCampaignOpen(true)}>
+              <Rocket className="size-4" />
+              Add to Campaign
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setAssignOwnerLeadIds(selectedLeadIds)}>
               <UserCog className="size-4" />
               Assign owner
@@ -392,6 +399,12 @@ export function LeadsTable({ onEditLead, onCreateLead }: LeadsTableProps): React
           await bulkGenerate({ lead_ids: selectedLeadIds, template_type: templateType, tone });
           setRowSelection({});
         }}
+      />
+      <AddToCampaignDialog
+        open={addToCampaignOpen}
+        onOpenChange={setAddToCampaignOpen}
+        leadIds={selectedLeadIds}
+        onEnrolled={() => setRowSelection({})}
       />
     </div>
   );

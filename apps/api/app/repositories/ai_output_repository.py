@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai.models import AIOutput
@@ -43,6 +43,25 @@ class AIOutputRepository:
         self.db.add(output)
         await self.db.flush()
         return output
+
+    async def get_latest_for_job(
+        self, job_id: uuid.UUID, organization_id: uuid.UUID, *, output_type: str
+    ) -> AIOutput | None:
+        """Used by the Campaigns scheduler to poll for a generation job's
+        result without calling `EmailGenerationService.finalize()` itself —
+        that would race the same job's own dispatched finalize task into
+        creating duplicate AIOutput rows. Polling for the row this way is
+        race-free: whichever task's `finalize()` call wins, this just reads
+        the result once it exists."""
+        return await self.db.scalar(
+            select(AIOutput)
+            .where(
+                AIOutput.job_id == job_id, AIOutput.organization_id == organization_id,
+                AIOutput.output_type == output_type,
+            )
+            .order_by(desc(AIOutput.created_at))
+            .limit(1)
+        )
 
     async def set_approval(self, output: AIOutput, *, approved: bool, approved_by: uuid.UUID) -> AIOutput:
         output.is_approved = approved

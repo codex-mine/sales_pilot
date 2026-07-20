@@ -78,6 +78,20 @@ class LeadRepository:
                 result[lead_id][key] = count
         return result
 
+    async def status_distribution(self, organization_id: uuid.UUID) -> dict[str, int]:
+        """Live `Lead.status` GROUP BY for the module 12 dashboard's Pipeline
+        Funnel widget. `Lead` is small and already indexed on
+        (organization_id, status)-adjacent columns, so this is the "cheap even
+        unaggregated" exception called out in ARCHITECTURE.md's Metric-first
+        rule — reading live also means the funnel never lags a nightly batch,
+        which matters most for the single most-checked dashboard widget."""
+        rows = await self.db.execute(
+            select(Lead.status, func.count(Lead.id))
+            .where(Lead.organization_id == organization_id, Lead.deleted_at.is_(None))
+            .group_by(Lead.status)
+        )
+        return {status: count for status, count in rows.all()}
+
     # ─── List / search / filter / sort / paginate ──────────────────────────────
 
     _SORT_COLUMNS = {

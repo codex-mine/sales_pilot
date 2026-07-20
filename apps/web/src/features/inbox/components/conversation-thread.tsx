@@ -2,7 +2,6 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Sparkles } from "@/icons";
+import { ScheduleMeetingDialog } from "@/features/meetings/components/schedule-meeting-dialog";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
 import { cn, getInitials } from "@/lib/utils";
 import { useConversation, useMarkConversationRead } from "../hooks/use-conversation";
@@ -68,16 +68,17 @@ export function ConversationThread({ conversationId, hideLeadHeader }: Conversat
       )}
       <div className="flex flex-col gap-3">
         {conversation.items.map((item) => (
-          <ThreadItemCard key={`${item.direction}-${item.id}`} item={item} />
+          <ThreadItemCard key={`${item.direction}-${item.id}`} item={item} leadId={conversation.lead_id} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThreadItemCard({ item }: { item: ThreadItemResponse }): React.ReactElement {
+function ThreadItemCard({ item, leadId }: { item: ThreadItemResponse; leadId: string }): React.ReactElement {
   const isInbound = item.direction === "inbound";
   const { reclassifyMessage, isReclassifying } = useReclassifyMessage();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const confirmSuppress = useConfirmDialog();
   const [pendingClassification, setPendingClassification] = useState<string | null>(null);
 
@@ -173,11 +174,7 @@ function ThreadItemCard({ item }: { item: ThreadItemResponse }): React.ReactElem
                 </SelectContent>
               </Select>
               {(item.reply_classification === "meeting_requested" || item.reply_classification === "interested") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toast.info("Meeting scheduling is coming in a future update.")}
-                >
+                <Button variant="outline" size="sm" onClick={() => setScheduleOpen(true)}>
                   <Calendar className="size-4" />
                   Create Meeting
                 </Button>
@@ -198,6 +195,13 @@ function ThreadItemCard({ item }: { item: ThreadItemResponse }): React.ReactElem
         confirmLabel="Reclassify & suppress"
         isConfirming={isReclassifying}
         onConfirm={handleConfirmSuppress}
+      />
+      <ScheduleMeetingDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        leadId={leadId}
+        sourceMessageId={item.id}
+        defaultTitle={item.subject ? `Re: ${item.subject}` : "Intro call"}
       />
     </div>
   );

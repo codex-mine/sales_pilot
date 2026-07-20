@@ -38,6 +38,25 @@ _LEAD_TERMINAL_STATUSES = {
 }
 
 
+def has_reached(current: str, milestone: LeadStatusEnum) -> bool:
+    """Whether `current` has reached at least `milestone` in the lifecycle —
+    the Campaigns module's auto-stop and conditional-skip logic reuse this
+    instead of re-deriving "has this lead replied/booked a meeting" from
+    scratch. Terminal statuses (WON/LOST/UNQUALIFIED/BOUNCED/UNSUBSCRIBED)
+    never "reached" a lifecycle milestone since they're a separate branch,
+    not a point on the linear order — callers that care about those check
+    them directly, as the auto-stop logic already does."""
+    try:
+        current_status = LeadStatusEnum(current)
+    except ValueError:
+        return False
+    if current_status in _LEAD_TERMINAL_STATUSES or milestone not in _LEAD_LIFECYCLE_ORDER:
+        return False
+    if current_status not in _LEAD_LIFECYCLE_ORDER:
+        return False
+    return _LEAD_LIFECYCLE_ORDER.index(current_status) >= _LEAD_LIFECYCLE_ORDER.index(milestone)
+
+
 def next_lead_status(current: str, target: LeadStatusEnum) -> str:
     """Returns the `Lead.status` value that should follow an engagement/AI
     event proposing `target`, given the lead's `current` status — `current`

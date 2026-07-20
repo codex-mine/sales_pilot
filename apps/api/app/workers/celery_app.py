@@ -23,14 +23,31 @@ Queues:
 - `inbox` — Inbox reply-classification finalize (app/workers/inbox_tasks.py).
   Same poll-then-finalize shape as `research`/`email`, applying
   classification side effects once the `ai`-queue job completes.
+- `meetings` — Meeting Scheduling & Calendar Booking internal reminders
+  (app/workers/meeting_tasks.py). One periodic Celery-beat task per worker
+  cycle, isolated so it never competes with the other queues.
+- `campaigns` — Multi-Step Sequence Automation (app/workers/
+  campaign_scheduler_tasks.py). `dispatch_due_campaign_steps` runs every 60
+  seconds and claims due CampaignLead rows with `SELECT ... FOR UPDATE SKIP
+  LOCKED` (see models/ARCHITECTURE.md §3), fanning out one
+  `execute_campaign_step` per row — isolated in its own queue since a step
+  that waits on AI generation can run considerably longer than this queue's
+  usual tasks.
+- `analytics` — Dashboard/Reports Metric aggregation (app/workers/
+  analytics_tasks.py). `aggregate_daily_metrics` runs once daily (01:00 UTC)
+  and writes the pipeline/AI-cost/campaign/meeting Metric rows the module 12
+  dashboard reads; `check_scheduled_reports` runs hourly and delivers any
+  due saved Report — isolated so a slow daily aggregation pass never delays
+  the other queues' usual sub-minute tasks.
 
 Run a worker locally with:
-  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,celery
+  celery -A app.workers.celery_app worker --loglevel=info -Q ai,research,email,sending,metrics,inbox,meetings,campaigns,analytics,celery
 Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -49,6 +66,9 @@ celery_app.conf.update(
         "sending.*": {"queue": "sending"},
         "metrics.*": {"queue": "metrics"},
         "inbox.*": {"queue": "inbox"},
+        "meetings.*": {"queue": "meetings"},
+        "campaigns.*": {"queue": "campaigns"},
+        "analytics.*": {"queue": "analytics"},
     },
     task_time_limit=get_settings().ai_job_timeout_seconds * 2,
     task_soft_time_limit=get_settings().ai_job_timeout_seconds,
@@ -63,6 +83,22 @@ celery_app.conf.update(
             "task": "metrics.aggregate_email_metrics",
             "schedule": 3600.0,
         },
+        "send-meeting-reminders": {
+            "task": "meetings.send_reminders",
+            "schedule": 900.0,
+        },
+        "dispatch-due-campaign-steps": {
+            "task": "campaigns.dispatch_due_steps",
+            "schedule": 60.0,
+        },
+        "aggregate-daily-metrics": {
+            "task": "analytics.aggregate_daily_metrics",
+            "schedule": crontab(hour=1, minute=0),
+        },
+        "check-scheduled-reports": {
+            "task": "analytics.check_scheduled_reports",
+            "schedule": 3600.0,
+        },
     },
 )
 
@@ -71,8 +107,11 @@ celery_app.autodiscover_tasks(["app.workers"])
 # Import task modules explicitly so a worker started with this app instance
 # always has them registered even if autodiscovery misses a packaging edge.
 from app.workers import ai_tasks  # noqa: E402,F401
+from app.workers import analytics_tasks  # noqa: E402,F401
+from app.workers import campaign_scheduler_tasks  # noqa: E402,F401
 from app.workers import email_tasks  # noqa: E402,F401
 from app.workers import email_metrics_tasks  # noqa: E402,F401
 from app.workers import email_sending_tasks  # noqa: E402,F401
 from app.workers import inbox_tasks  # noqa: E402,F401
+from app.workers import meeting_tasks  # noqa: E402,F401
 from app.workers import research_tasks  # noqa: E402,F401

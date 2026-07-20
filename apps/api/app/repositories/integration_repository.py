@@ -26,6 +26,21 @@ class IntegrationRepository:
             )
         )
 
+    async def get_user_level(
+        self, organization_id: uuid.UUID, user_id: uuid.UUID, integration_type: str
+    ) -> Integration | None:
+        """User-level integrations (calendar, personal email) — one row per
+        (org, user, type), enforced by the model's own unique constraint since
+        `user_id` is set here (unlike `get_org_level`'s NULL)."""
+        return await self.db.scalar(
+            select(Integration).where(
+                Integration.organization_id == organization_id,
+                Integration.user_id == user_id,
+                Integration.integration_type == integration_type,
+                Integration.deleted_at.is_(None),
+            )
+        )
+
     async def list_org_level(self, organization_id: uuid.UUID) -> list[Integration]:
         rows = await self.db.scalars(
             select(Integration).where(

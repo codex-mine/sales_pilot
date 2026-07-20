@@ -25,6 +25,8 @@ import {
   Trash2,
   Twitter,
 } from "@/icons";
+import { LeadCampaignsPanel } from "@/features/campaigns/components/lead-campaigns-panel";
+import { LeadMeetingsPanel } from "@/features/meetings/components/lead-meetings-panel";
 import { getInitials } from "@/lib/utils";
 import { useDeleteLead, useToggleLeadFlag } from "../hooks/use-lead-mutations";
 import { useLead } from "../hooks/use-lead";
@@ -147,6 +149,8 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
               <TabsTrigger value="research">Research</TabsTrigger>
               <TabsTrigger value="outreach">Outreach</TabsTrigger>
               <TabsTrigger value="conversations">Conversations</TabsTrigger>
+              <TabsTrigger value="meetings">Meetings</TabsTrigger>
+              <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
               <TabsTrigger value="attachments">Attachments ({lead.attachments_count})</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -167,6 +171,20 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
               <Card>
                 <CardContent className="pt-6">
                   <LeadConversationsPanel leadId={lead.id} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="meetings">
+              <Card>
+                <CardContent className="pt-6">
+                  <LeadMeetingsPanel leadId={lead.id} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="campaigns">
+              <Card>
+                <CardContent className="pt-6">
+                  <LeadCampaignsPanel leadId={lead.id} />
                 </CardContent>
               </Card>
             </TabsContent>
