@@ -15,6 +15,8 @@ FAILED — the failure is never silently swallowed.
 import asyncio
 import uuid
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import get_settings
 from app.workers.celery_app import celery_app
 from app.workers.session_utils import run_with_fresh_session as _run_with_fresh_session

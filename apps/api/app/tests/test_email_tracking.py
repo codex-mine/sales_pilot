@@ -25,8 +25,8 @@ from app.models.ai.models import AIOutput
 from app.models.communication.models import Email, EmailEvent
 from app.models.crm.models import Lead
 from app.security.tokens import sign_click_url
-from app.services.ai.llm_client import LLMCompletionResult
 from app.services.email.webhook_signature import sign_generic_webhook
+from app.tests.ai_fakes import FakeChatModel
 from app.tests.conftest import register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
@@ -50,16 +50,14 @@ _EMAIL_VARIANTS_JSON = [
 ]
 
 
-class _StubGenerationLLMClient:
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        system_prompt = kwargs.get("system_prompt", "")
-        if "sales development representative" in system_prompt:
-            content = json.dumps(_EMAIL_VARIANTS_JSON)
-        elif "sales strategist" in system_prompt:
-            content = json.dumps(_PROSPECT_JSON)
-        else:
-            content = json.dumps(_RESEARCH_JSON)
-        return LLMCompletionResult(content=content, input_tokens=100, output_tokens=50, raw_response={})
+def _generation_responder(system_prompt: str, _user_prompt: str) -> str:
+    if "strict editor" in system_prompt:
+        return json.dumps({"passes": True, "feedback": None})
+    if "sales development representative" in system_prompt:
+        return json.dumps(_EMAIL_VARIANTS_JSON)
+    if "sales strategist" in system_prompt:
+        return json.dumps(_PROSPECT_JSON)
+    return json.dumps(_RESEARCH_JSON)
 
 
 class _StubSenderClient:
@@ -71,9 +69,9 @@ class _StubSenderClient:
 
 @pytest.fixture
 def eager_generation(monkeypatch):
-    stub = _StubGenerationLLMClient()
+    stub = FakeChatModel(responder=_generation_responder)
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
     return stub
 
 

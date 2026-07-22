@@ -46,10 +46,37 @@ Run beat (for scheduled sends + hourly metrics) alongside it with:
   celery -A app.workers.celery_app beat --loglevel=info
 """
 
+import asyncio
+
 from celery import Celery
 from celery.schedules import crontab
 
+from app.core.asyncio_compat import ensure_selector_event_loop_policy
 from app.core.config import get_settings
+
+# Same Windows/psycopg-async note as app/main.py — each task's
+# `asyncio.run(...)` (see app/workers/session_utils.py) creates a fresh loop
+# per invocation, so the policy must be set once here at worker-process
+# import time, before the first task ever runs.
+ensure_selector_event_loop_policy()
+
+# Same "must run once, before any task could hold an open transaction"
+# requirement as app/main.py's lifespan — see `bootstrap_checkpoint_tables`'s
+# docstring. In a real Celery worker process, this module is imported
+# exactly once at true cold start (no event loop running yet), so
+# `asyncio.run(...)` here is that process's bootstrap point. In the API
+# process and in tests, though, this module is imported *lazily* — from
+# inside `AIJobService.run_job`'s non-eager dispatch branch, itself already
+# running inside an event loop (FastAPI's/pytest-asyncio's) — where
+# `asyncio.run()` would raise; skip in that case, since that caller's own
+# process already bootstrapped the tables itself (`app/main.py`'s lifespan,
+# or the test suite's session-scoped schema fixture).
+from app.agents.base import bootstrap_checkpoint_tables  # noqa: E402
+
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    asyncio.run(bootstrap_checkpoint_tables())
 
 celery_app = Celery(
     "salespilot",

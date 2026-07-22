@@ -20,14 +20,36 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }
   worker:
-    # Same image as `api` — only the command differs. Runs the Celery `ai`
-    # queue so AI jobs execute asynchronously (see app/workers/celery_app.py).
+    # Same image as `api` — only the command differs. Consumes every queue
+    # app/workers/celery_app.py defines (ai/research/email/sending/metrics/
+    # inbox/meetings/campaigns/analytics/celery) — this previously only
+    # listened on `ai,celery`, so every other module's Celery tasks
+    # (research/email/reply finalize, scheduled sends, metrics aggregation,
+    # meeting reminders, campaign steps, analytics/reports) were dispatched
+    # but never actually consumed under `docker compose up`.
     build: { context: ./apps/api, dockerfile: Dockerfile }
     env_file: ./apps/api/.env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ai_sales_agent
       - REDIS_URL=redis://redis:6379/0
-    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "ai,celery", "--concurrency=4"]
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "ai,research,email,sending,metrics,inbox,meetings,campaigns,analytics,celery", "--concurrency=4"]
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+  beat:
+    # Same image as `worker`/`api` — only the command differs. Fires the
+    # periodic tasks celery_app.py's `beat_schedule` defines (scheduled email
+    # dispatch, hourly metrics aggregation, meeting reminders, campaign step
+    # dispatch, daily analytics aggregation, scheduled report delivery) — did
+    # not exist in this file before, so none of those ever ran under
+    # `docker compose up`.
+    build: { context: ./apps/api, dockerfile: Dockerfile }
+    env_file: ./apps/api/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ai_sales_agent
+      - REDIS_URL=redis://redis:6379/0
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
     restart: unless-stopped
     depends_on:
       postgres: { condition: service_healthy }

@@ -322,6 +322,18 @@ export interface EmailResponse {
   created_at: string;
 }
 
+export interface ComposeEmailRequest {
+  to_email?: string;
+  to_name?: string;
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  reply_to?: string;
+  sender_mailbox_id?: string;
+  template_id?: string;
+  send_now?: boolean;
+}
+
 export interface GenerateEmailRequest {
   template_type: EmailTemplateType;
   tone: EmailTone;

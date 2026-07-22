@@ -13,6 +13,7 @@ import type {
   BulkResearchResponse,
   BulkSendRequest,
   BulkSendResponse,
+  ComposeEmailRequest,
   EmailEventResponse,
   EmailPreviewResponse,
   EmailResponse,
@@ -264,6 +265,12 @@ export async function getActivities(
 
 // ─── Email Sending (Communication -> Send Draft Email) ──────────────────────────
 
+export async function composeLeadEmail(leadId: string, payload: ComposeEmailRequest): Promise<EmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailResponse>>(`/leads/${leadId}/emails/compose`, payload);
+  if (!data.data) throw new Error("Failed to send the email.");
+  return data.data;
+}
+
 export async function sendLeadEmail(leadId: string, emailId: string): Promise<EmailResponse> {
   const { data } = await apiClient.post<ApiResponse<EmailResponse>>(
     `/leads/${leadId}/emails/${emailId}/send`,
@@ -359,6 +366,7 @@ export const leadService = {
   bulkGenerateEmails,
   approveEmailVariant,
   rejectEmailVariant,
+  composeLeadEmail,
   sendLeadEmail,
   scheduleLeadEmail,
   cancelLeadEmail,

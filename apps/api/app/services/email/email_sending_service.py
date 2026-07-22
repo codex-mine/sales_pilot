@@ -71,6 +71,68 @@ class EmailSendingService:
 
     # ─── Public actions ─────────────────────────────────────────────────────────
 
+    async def compose(
+        self, organization_id: uuid.UUID, lead_id: uuid.UUID, *,
+        subject: str, body_html: str, body_text: str | None,
+        to_email: str | None, to_name: str | None, reply_to: str | None,
+        sender_mailbox_id: uuid.UUID | None, template_id: uuid.UUID | None,
+        send_now: bool, actor: User,
+    ) -> Email:
+        """Phase X Issue 08 — a human-typed email for a lead, independent of
+        both the AI generation flow (`EmailGenerationService.approve_variant`)
+        and campaign sequences (`CampaignSchedulerService`). Creates a DRAFT
+        `Email` row (so it gets identical delivered/opened/clicked/replied/
+        bounce tracking to every other Email — that machinery is already
+        generic, keyed off `email_id`, not `ai_generated`/`campaign_lead_id`),
+        then optionally sends it immediately through the exact same
+        `send_now` path everything else uses."""
+        lead = await self.leads.get_by_id(lead_id, organization_id)
+        if lead is None:
+            raise NotFoundError("Lead not found.")
+        resolved_to_email = to_email or lead.email
+        if not resolved_to_email:
+            raise ValidationError(
+                "This lead has no email address on file — provide a recipient explicitly.",
+                errors={"to_email": ["Required."]},
+            )
+
+        if sender_mailbox_id is not None:
+            from_email, mailbox_from_name, mailbox_reply_to = await self.sender_settings.get_mailbox_identity(
+                organization_id, sender_mailbox_id
+            )
+            from_name = mailbox_from_name or actor.full_name
+            reply_to = reply_to or mailbox_reply_to
+        else:
+            from_email, from_name = actor.email, actor.full_name
+
+        template_ref = None
+        if template_id is not None:
+            template_ref = await self.templates.get_by_id(template_id, organization_id)
+            if template_ref is None:
+                raise NotFoundError("Email template not found.")
+
+        personalization_data = {"sender_mailbox_id": str(sender_mailbox_id)} if sender_mailbox_id else None
+
+        email = await self.emails.create(
+            organization_id=organization_id, lead_id=lead.id,
+            from_email=from_email, from_name=from_name,
+            to_email=resolved_to_email, to_name=to_name or lead.full_name, reply_to=reply_to,
+            subject=subject, body_html=body_html, body_text=body_text,
+            current_status="draft", ai_generated=False,
+            email_template_id=template_ref.id if template_ref else None,
+            personalization_data=personalization_data,
+        )
+        await self.audit_log.record(
+            organization_id=organization_id, actor_id=actor.id, actor_email=actor.email,
+            action=AuditActionEnum.CREATE, resource_type="email", resource_id=email.id,
+            changes={"event": "email_composed", "lead_id": str(lead.id), "sender_mailbox_id": str(sender_mailbox_id) if sender_mailbox_id else None},
+        )
+        await self.db.commit()
+
+        if send_now:
+            return await self.send_now(organization_id, email.id, actor=actor)
+        return await self.require_email(email.id, organization_id)
+
     async def send_now(self, organization_id: uuid.UUID, email_id: uuid.UUID, *, actor: User) -> Email:
         email = await self._require_locked(email_id, organization_id)
         return await self._attempt_send(email, actor=actor, mark_failed_immediately=True)
@@ -232,7 +294,17 @@ class EmailSendingService:
             if not await self._within_send_window(email, organization):
                 return email  # left as-is; the scheduler reconsiders it next tick
 
-        credentials = await self.sender_settings.resolve_credentials(email.organization_id)
+        # Sender Mailbox Management: a specific mailbox chosen at compose time
+        # (Manual Email / AI Email / campaign step / test send) is tagged
+        # onto the row's `personalization_data` — no schema migration needed,
+        # this JSONB field already exists for exactly this kind of per-email
+        # metadata (see `email_generation_service.py`'s `ai_output_id`
+        # tagging). Absent that, `resolve_credentials` falls back to the
+        # org's default mailbox.
+        sender_mailbox_id = (email.personalization_data or {}).get("sender_mailbox_id")
+        credentials = await self.sender_settings.resolve_credentials(
+            email.organization_id, mailbox_id=uuid.UUID(sender_mailbox_id) if sender_mailbox_id else None
+        )
         if credentials is None:
             message = "No outreach sending mailbox is configured for this organization."
             await self.emails.update(email, {"current_status": "failed", "send_error": message}, updated_by=actor.id)
@@ -243,7 +315,7 @@ class EmailSendingService:
             )
             await self.db.commit()
             raise EmailSendError(message)
-        host, port, username, password, use_tls = credentials
+        host, port, username, password, use_tls, encryption_type = credentials
 
         organization = await self.organizations.get_by_id(email.organization_id)
         final_html, final_text, unsubscribe_url = self._inject_compliance_footer(email, lead, organization)
@@ -253,7 +325,10 @@ class EmailSendingService:
         await self.emails.update(email, {"current_status": "sending"}, updated_by=actor.id)
         await self.db.commit()
 
-        client = get_sender_client("smtp", host=host, port=port, username=username, password=password, use_tls=use_tls)
+        client = get_sender_client(
+            "smtp", host=host, port=port, username=username, password=password, use_tls=use_tls,
+            encryption_type=encryption_type,
+        )
         try:
             result = await client.send(
                 from_email=email.from_email, from_name=email.from_name,

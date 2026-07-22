@@ -69,6 +69,38 @@ class EmailResponse(BaseModel):
     created_at: datetime
 
 
+def _validate_template_type(value: str | None) -> str | None:
+    if value is not None and value not in {e.value for e in EmailTemplateTypeEnum}:
+        raise ValueError(f"template_type must be one of: {', '.join(e.value for e in EmailTemplateTypeEnum)}.")
+    return value
+
+
+def _validate_tone(value: str | None) -> str | None:
+    if value is not None and value not in {e.value for e in EmailToneEnum}:
+        raise ValueError(f"tone must be one of: {', '.join(e.value for e in EmailToneEnum)}.")
+    return value
+
+
+class EmailTemplateCreateRequest(BaseModel):
+    """Manual (non-AI) template creation — Phase X Issue 07. `template_type`
+    doubles as the "category" the feature asks for (COLD_OUTREACH/FOLLOW_UP/
+    BREAK_UP/LINKEDIN/MEETING_REQUEST/PROPOSAL/CUSTOM — `CUSTOM` fits a
+    template that doesn't map to any of the campaign-oriented types), so no
+    separate category field/column was needed."""
+
+    name: str = Field(min_length=1, max_length=255)
+    template_type: str
+    tone: str | None = None
+    subject: str = Field(min_length=1, max_length=512)
+    body_html: str = Field(min_length=1)
+    body_text: str | None = None
+    variables_used: list[str] | None = None
+    is_active: bool = True
+
+    _validate_template_type = field_validator("template_type")(_validate_template_type)
+    _validate_tone = field_validator("tone")(_validate_tone)
+
+
 class EmailTemplateUpdateRequest(BaseModel):
     """PATCH semantics — template_type/tone stay plain strings (not the enum
     types), matching LeadUpdateRequest.status/CompanyUpdateRequest.status."""
@@ -79,21 +111,15 @@ class EmailTemplateUpdateRequest(BaseModel):
     subject: str | None = Field(default=None, min_length=1, max_length=512)
     body_html: str | None = Field(default=None, min_length=1)
     body_text: str | None = None
+    variables_used: list[str] | None = None
     is_active: bool | None = None
 
-    @field_validator("template_type")
-    @classmethod
-    def _validate_template_type(cls, value: str | None) -> str | None:
-        if value is not None and value not in {e.value for e in EmailTemplateTypeEnum}:
-            raise ValueError(f"template_type must be one of: {', '.join(e.value for e in EmailTemplateTypeEnum)}.")
-        return value
+    _validate_template_type = field_validator("template_type")(_validate_template_type)
+    _validate_tone = field_validator("tone")(_validate_tone)
 
-    @field_validator("tone")
-    @classmethod
-    def _validate_tone(cls, value: str | None) -> str | None:
-        if value is not None and value not in {e.value for e in EmailToneEnum}:
-            raise ValueError(f"tone must be one of: {', '.join(e.value for e in EmailToneEnum)}.")
-        return value
+
+class DuplicateEmailTemplateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class EmailTemplateResponse(BaseModel):

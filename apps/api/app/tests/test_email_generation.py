@@ -21,7 +21,7 @@ from app.exceptions.errors import AIOutputParsingError
 from app.models.crm.models import Lead
 from app.repositories.ai_job_repository import AIJobRepository
 from app.repositories.user_repository import UserRepository
-from app.services.ai.llm_client import LLMCompletionResult
+from app.tests.ai_fakes import FakeChatModel
 from app.tests.conftest import register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
@@ -68,41 +68,35 @@ _EMAIL_VARIANTS_JSON = [
 ]
 
 
-class _StubGenerationLLMClient:
+def _generation_responder(malformed: bool = False):
     """Branches on the system prompt's distinguishing phrase to serve
-    research / prospect-analysis / email-generation responses from one stub,
-    since generate_email's auto-research-trigger chains through all three
-    job types in a single test run."""
+    research / prospect-analysis / email-generation / self-critique
+    responses from one stub, since generate_email's auto-research-trigger
+    chains through all three earlier job types in a single test run, and
+    email_agent's `self_critique` node (module 13) makes a second call per
+    generation for its own "no generic filler" review — this always reports
+    "passes" so these pre-existing tests exercise exactly one regeneration
+    pass (zero), matching their original single-call assumption; the
+    dedicated self-critique regeneration behavior itself is covered in
+    test_email_agent_graph.py."""
 
-    def __init__(self, *, fail: bool = False, malformed: bool = False) -> None:
-        self.fail = fail
-        self.malformed = malformed
-        self.calls: list[dict] = []
-
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        self.calls.append(kwargs)
-        if self.fail:
-            from app.exceptions.errors import LLMProviderError
-
-            raise LLMProviderError("stubbed provider failure")
-        system_prompt = kwargs.get("system_prompt", "")
+    def _respond(system_prompt: str, _user_prompt: str) -> str:
+        if "strict editor" in system_prompt:
+            return json.dumps({"passes": True, "feedback": None})
         if "sales development representative" in system_prompt:
-            if self.malformed:
-                content = "not json{{{"
-            else:
-                content = json.dumps(_EMAIL_VARIANTS_JSON)
-        elif "sales strategist" in system_prompt:
-            content = json.dumps(_PROSPECT_JSON)
-        else:
-            content = json.dumps(_RESEARCH_JSON)
-        return LLMCompletionResult(content=content, input_tokens=120, output_tokens=80, raw_response={})
+            return "not json{{{" if malformed else json.dumps(_EMAIL_VARIANTS_JSON)
+        if "sales strategist" in system_prompt:
+            return json.dumps(_PROSPECT_JSON)
+        return json.dumps(_RESEARCH_JSON)
+
+    return _respond
 
 
 @pytest.fixture
 def eager_generation(monkeypatch):
-    stub = _StubGenerationLLMClient()
+    stub = FakeChatModel(responder=_generation_responder())
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
     return stub
 
 
@@ -200,8 +194,10 @@ async def test_generate_email_end_to_end_multi_variant(
     job = response.json()["data"]
     assert job["status"] == "completed"
     assert job["job_type"] == "generate_email"
-    # One LLM call for this generate request (context already had research from before).
-    assert len(eager_generation.calls) == calls_before + 1
+    # Two LLM calls for this generate request (context already had research
+    # from before): generate_variants, then self_critique's review pass
+    # (module 13's email_agent graph — see _generation_responder above).
+    assert len(eager_generation.calls) == calls_before + 2
 
     # Re-fetch fresh: the raw chokepoint output (output_type="generate_email",
     # holding the untouched parsed array) plus the 2 per-variant AIOutput rows
@@ -246,9 +242,9 @@ async def test_malformed_email_json_fails_ai_job_cleanly(
     lead = await _create_lead(client)
     await _research_lead(client, db, lead["id"], company["id"])
 
-    stub = _StubGenerationLLMClient(malformed=True)
+    stub = FakeChatModel(responder=_generation_responder(malformed=True))
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
 
     from app.services.ai.email_generation_service import EmailGenerationService
     from app.models.enums import EmailTemplateTypeEnum, EmailToneEnum
@@ -315,9 +311,12 @@ async def test_regenerate_incorporates_feedback_and_marks_prior_rejected(
     await db.refresh(variant_output)
     assert variant_output.is_approved is False  # marked rejected by the regenerate call
 
-    last_call = eager_generation.calls[-1]
-    assert "make it shorter and more casual" in last_call["user_prompt"]
-    assert "previous draft was rejected" in last_call["user_prompt"].lower()
+    # calls[-1] is self_critique's review pass (module 13's email_agent
+    # graph runs it after every generation) — the generation call itself,
+    # with the regenerate-specific context, is the one before it.
+    generation_call = eager_generation.calls[-2]
+    assert "make it shorter and more casual" in generation_call["user_prompt"]
+    assert "previous draft was rejected" in generation_call["user_prompt"].lower()
 
 
 # ─── Approval ───────────────────────────────────────────────────────────────────

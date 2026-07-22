@@ -32,7 +32,7 @@ from app.schemas.email_generation import (
     GenerateEmailRequest,
     RegenerateEmailRequest,
 )
-from app.schemas.email_sending import ScheduleEmailRequest
+from app.schemas.email_sending import ComposeEmailRequest, ScheduleEmailRequest
 from app.schemas.email_serializers import serialize_email
 from app.schemas.lead_serializers import (
     serialize_activity,
@@ -492,6 +492,28 @@ async def regenerate_lead_email(
 
 
 # ─── Email Sending (Communication -> Send Draft Email) ───────────────────────────
+
+
+@router.post("/{lead_id}/emails/compose", response_model=ApiResponse[EmailResponse], status_code=status.HTTP_201_CREATED)
+async def compose_lead_email(
+    lead_id: uuid.UUID,
+    payload: ComposeEmailRequest,
+    user: User = Depends(require_permission("leads", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[EmailResponse]:
+    """Phase X Issue 08 — a hand-written email (Sender Mailbox, recipient,
+    subject/body, optional template/AI content already applied client-side,
+    optional immediate send), independent of the AI generation and campaign
+    flows above."""
+    email = await EmailSendingService(db).compose(
+        user.organization_id, lead_id, subject=payload.subject, body_html=payload.body_html,
+        body_text=payload.body_text, to_email=payload.to_email, to_name=payload.to_name,
+        reply_to=payload.reply_to, sender_mailbox_id=payload.sender_mailbox_id,
+        template_id=payload.template_id, send_now=payload.send_now, actor=user,
+    )
+    return ApiResponse(
+        data=serialize_email(email), message="Email sent." if payload.send_now else "Email saved as draft."
+    )
 
 
 @router.post("/{lead_id}/emails/{email_id}/send", response_model=ApiResponse[EmailResponse])

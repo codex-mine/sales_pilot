@@ -48,6 +48,12 @@ _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False, class_=Async
 async def _create_schema():
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Module 13's LangGraph checkpointer tables — must be created once here,
+    # before any test executes an AI job, never lazily inside one (see
+    # `bootstrap_checkpoint_tables`'s docstring for the deadlock this avoids).
+    from app.agents.base import bootstrap_checkpoint_tables
+
+    await bootstrap_checkpoint_tables()
     yield
     await _engine.dispose()
 

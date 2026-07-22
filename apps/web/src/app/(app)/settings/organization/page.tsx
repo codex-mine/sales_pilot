@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionGuard } from "@/components/guards";
-import { EmailSenderSettingsPanel } from "@/features/email-sender/components/email-sender-settings-panel";
+import { SenderMailboxManagementPanel } from "@/features/email-sender/components/sender-mailbox-management-panel";
 import { EditOrganizationDrawer } from "@/features/organizations/components/edit-organization-drawer";
 import { InvitationList } from "@/features/organizations/components/invitation-list";
 import { MembersTable } from "@/features/organizations/components/members-table";
@@ -101,7 +101,7 @@ export default function OrganizationSettingsPage(): React.ReactElement {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <PermissionGuard permission="campaigns.manage" fallback={<></>}>
-            <TabsTrigger value="email-sender">Email Sender</TabsTrigger>
+            <TabsTrigger value="email-sender">Sender Mailboxes</TabsTrigger>
           </PermissionGuard>
           <PermissionGuard permission="organizations.delete" fallback={<></>}>
             <TabsTrigger value="danger">Danger zone</TabsTrigger>
@@ -192,7 +192,7 @@ export default function OrganizationSettingsPage(): React.ReactElement {
 
         <PermissionGuard permission="campaigns.manage" fallback={<></>}>
           <TabsContent value="email-sender">
-            <EmailSenderSettingsPanel />
+            <SenderMailboxManagementPanel />
           </TabsContent>
         </PermissionGuard>
 

@@ -11,12 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Sparkles } from "@/icons";
+import { Mail, Pencil, Sparkles } from "@/icons";
+import { AgentStepTimeline, type AgentStepDefinition } from "@/features/ai/components/agent-step-timeline";
 import { AI_JOB_QUERY_KEY, useAIJob } from "@/features/ai/hooks/use-ai-job";
 import { ACTIVE_JOB_STATUSES } from "@/features/ai/types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { EmailDraftCard } from "./email-draft-card";
 import { EmailVariantCard } from "./email-variant-card";
+import { SendCustomEmailDialog } from "./send-custom-email-dialog";
 import {
   LEAD_EMAIL_DRAFTS_QUERY_KEY,
   useGenerateLeadEmail,
@@ -29,10 +31,12 @@ import {
   EMAIL_TONE_LABELS,
   type EmailTemplateType,
   type EmailTone,
+  type LeadResponse,
 } from "../types";
 
 export interface LeadOutreachPanelProps {
   leadId: string;
+  lead: LeadResponse;
 }
 
 const JOB_STATUS_LABEL: Record<string, string> = {
@@ -41,7 +45,15 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   retrying: "Retrying",
 };
 
-export function LeadOutreachPanel({ leadId }: LeadOutreachPanelProps): React.ReactElement {
+// Node names must match app/agents/email_agent.py's `@step(...)` names exactly.
+const EMAIL_GENERATION_STEPS: AgentStepDefinition[] = [
+  { node: "gather_context", label: "Gathering research context" },
+  { node: "generate_variants", label: "Writing email variants" },
+  { node: "self_critique", label: "Reviewing for generic filler" },
+  { node: "finalize", label: "Finalizing drafts" },
+];
+
+export function LeadOutreachPanel({ leadId, lead }: LeadOutreachPanelProps): React.ReactElement {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { drafts, isLoading, isError, errorMessage, refetch } = useLeadEmailDrafts(leadId);
@@ -51,6 +63,7 @@ export function LeadOutreachPanel({ leadId }: LeadOutreachPanelProps): React.Rea
   const [tone, setTone] = useState<EmailTone>("professional");
   const [customInstruction, setCustomInstruction] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | undefined>(undefined);
+  const [composeOpen, setComposeOpen] = useState(false);
   const { job } = useAIJob(activeJobId);
 
   const isRunning = job ? ACTIVE_JOB_STATUSES.has(job.status) : false;
@@ -152,6 +165,9 @@ export function LeadOutreachPanel({ leadId }: LeadOutreachPanelProps): React.Rea
               <span className="text-body-sm text-danger">{job.error_message ?? "Generation failed."}</span>
             )}
           </div>
+          {isRunning && (
+            <AgentStepTimeline jobId={activeJobId} steps={EMAIL_GENERATION_STEPS} className="max-w-md" />
+          )}
         </CardContent>
       </Card>
 
@@ -177,7 +193,13 @@ export function LeadOutreachPanel({ leadId }: LeadOutreachPanelProps): React.Rea
       )}
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-body-md font-semibold text-foreground">Emails</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-body-md font-semibold text-foreground">Emails</h3>
+          <Button variant="outline" size="sm" onClick={() => setComposeOpen(true)}>
+            <Pencil className="size-4" />
+            Send custom email
+          </Button>
+        </div>
         {drafts.length === 0 ? (
           <EmptyState
             icon={Mail}
@@ -192,6 +214,8 @@ export function LeadOutreachPanel({ leadId }: LeadOutreachPanelProps): React.Rea
           </div>
         )}
       </div>
+
+      <SendCustomEmailDialog open={composeOpen} onOpenChange={setComposeOpen} lead={lead} />
     </div>
   );
 }

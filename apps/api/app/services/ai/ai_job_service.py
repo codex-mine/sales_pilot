@@ -17,7 +17,6 @@ Execution model:
   append-only audit rule.
 """
 
-import json
 import time
 import traceback
 import uuid
@@ -25,8 +24,10 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents import get_graph_builder
+from app.agents.base import checkpointer_context
 from app.core.config import get_settings
-from app.exceptions.errors import AIOutputParsingError, NotFoundError, ValidationError
+from app.exceptions.errors import NotFoundError, ValidationError
 from app.models.ai.models import AIJob, AIOutput
 from app.models.enums import AIAgentTypeEnum, AIJobStatusEnum, AuditActionEnum, LLMProviderEnum
 from app.models.identity.models import User
@@ -36,9 +37,9 @@ from app.repositories.ai_output_repository import AIOutputRepository
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.prompt_repository import PromptRepository
 from app.services.ai.ai_settings_service import AISettingsService
-from app.services.ai.llm_client import get_llm_client
-from app.services.ai.pricing import compute_cost_usd
+from app.services.ai.cost_tracking_callback import CostTrackingCallbackHandler
 from app.services.ai.prompt_service import PromptService, render_prompt
+from app.services.ai.system_prompts import SYSTEM_PROMPT_TEMPLATES
 
 _TERMINAL_STATUSES = {
     AIJobStatusEnum.COMPLETED,
@@ -161,28 +162,26 @@ class AIJobService:
 
         input_data = job.input_data or {}
         started = time.monotonic()
+        cost_handler = CostTrackingCallbackHandler()
+        provider = LLMProviderEnum(job.provider)
         try:
-            api_key, base_url = await self.settings_service.resolve_credentials(
-                organization_id, LLMProviderEnum(job.provider)
-            )
-            client = get_llm_client(LLMProviderEnum(job.provider), api_key, base_url=base_url)
-            result = await client.complete(
-                system_prompt=input_data.get("system_prompt", ""),
-                user_prompt=input_data.get("user_prompt", ""),
-                model=job.model_name or "",
-                temperature=input_data.get("temperature", 0.7),
-                max_tokens=input_data.get("max_tokens", 2048),
-            )
-            # response_format="json" (research/email-gen/etc. all request
-            # structured output) is validated here, inside the same try block
-            # as the provider call, so malformed output fails the AIJob
-            # cleanly via the except below instead of being marked COMPLETED
-            # with garbage content_json.
-            content_json = (
-                _parse_json_content(result.content)
-                if input_data.get("response_format") == "json"
-                else None
-            )
+            api_key, base_url = await self.settings_service.resolve_credentials(organization_id, provider)
+            agent_type = _resolve_agent_type(job)
+            initial_state = _build_initial_state(job, input_data, provider, api_key, base_url)
+
+            # A fresh checkpointer + compiled graph per invocation — see
+            # app/agents/base.py's module docstring for why (Celery's
+            # fresh-event-loop-per-task-run constraint applies to the
+            # checkpointer's DB connection exactly like it does to the
+            # session engine `run_with_fresh_session` builds per call).
+            async with checkpointer_context() as checkpointer:
+                graph = get_graph_builder(agent_type)().compile(checkpointer=checkpointer)
+                final_state = await graph.ainvoke(
+                    initial_state,
+                    config={"configurable": {"thread_id": str(job.id)}, "callbacks": [cost_handler]},
+                )
+            output_content = final_state.get("output_content") or ""
+            output_json = final_state.get("output_json")
         except Exception as exc:  # noqa: BLE001 — every failure lands on the job row
             await self.jobs.mark_failed(
                 job, error_message=str(exc), error_traceback=traceback.format_exc()
@@ -196,16 +195,14 @@ class AIJobService:
             job_id=job.id,
             organization_id=organization_id,
             output_type=job.job_type,
-            content_text=result.content,
-            content_json=content_json,
+            content_text=output_content,
+            content_json=output_json,
         )
         await self.jobs.mark_completed(
             job,
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
-            cost_usd=compute_cost_usd(
-                LLMProviderEnum(job.provider), job.model_name or "", result.input_tokens, result.output_tokens
-            ),
+            input_tokens=cost_handler.input_tokens,
+            output_tokens=cost_handler.output_tokens,
+            cost_usd=cost_handler.cost_usd(provider, job.model_name or ""),
             latency_ms=latency_ms,
         )
         await self._audit_system_event(job, "ai_job_completed", {"cost_usd": job.cost_usd})
@@ -308,27 +305,55 @@ class AIJobService:
         )
 
 
-def _parse_json_content(text: str) -> dict | list:
-    """Defensive JSON parse for `response_format="json"` jobs: strips a
-    ```json fence some models still wrap output in despite being told to
-    return raw JSON, then requires a JSON object or array (not a bare
-    scalar/null) — most structured-output callers (research, prospect
-    analysis) return an object; multi-variant callers (email generation)
-    return an array of objects. Each feature service validates the specific
-    shape it expects on top of this."""
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.strip("`")
-        if stripped.lower().startswith("json"):
-            stripped = stripped[4:]
-        stripped = stripped.strip()
-    try:
-        parsed = json.loads(stripped)
-    except json.JSONDecodeError as exc:
-        raise AIOutputParsingError(f"Model returned malformed JSON: {exc}") from exc
-    if not isinstance(parsed, (dict, list)):
-        raise AIOutputParsingError("Model output was valid JSON but not a JSON object or array.")
-    return parsed
+def _resolve_agent_type(job: AIJob) -> AIAgentTypeEnum:
+    """AIJob has no `agent_type` column of its own (only `agent_id`, which is
+    NULL whenever an org runs on the platform-default agent config rather
+    than an explicit `AIAgent` row) — the system prompt template name stored
+    in `input_data` is the reliable source, since every current caller
+    (CompanyResearchService, EmailGenerationService, InboundEmailService,
+    ProspectAnalysisService) always passes one of the five fixed system
+    template names. Falls back to `job.agent.agent_type`, then
+    `ORCHESTRATOR`, mirroring `retry_job`'s existing fallback chain."""
+    template_name = (job.input_data or {}).get("prompt_template")
+    seed = SYSTEM_PROMPT_TEMPLATES.get(template_name) if template_name else None
+    if seed is not None:
+        return seed[0]
+    if job.agent is not None:
+        return AIAgentTypeEnum(job.agent.agent_type)
+    return AIAgentTypeEnum.ORCHESTRATOR
+
+
+def _build_initial_state(
+    job: AIJob, input_data: dict, provider: LLMProviderEnum, api_key: str | None, base_url: str | None
+) -> dict:
+    """One shared superset state dict for every graph — each graph's own
+    `TypedDict` schema only reads the keys it declares, so passing the full
+    set here (rather than branching per agent type) keeps this call site
+    simple without any graph seeing fields it doesn't understand."""
+    variables = input_data.get("variables") or {}
+    return {
+        "job_id": job.id,
+        "system_prompt": input_data.get("system_prompt", ""),
+        "user_prompt": input_data.get("user_prompt", ""),
+        "provider": provider.value,
+        "model_name": job.model_name or "",
+        "temperature": input_data.get("temperature", 0.7),
+        "max_tokens": input_data.get("max_tokens", 2048),
+        "api_key": api_key,
+        "base_url": base_url,
+        "response_format": input_data.get("response_format", "text"),
+        "reply_body": variables.get("reply_body"),
+        "company_name": variables.get("company_name"),
+        "data_quality": variables.get("data_quality"),
+        "variants": None,
+        "critique_passed": None,
+        "critique_feedback": None,
+        "critique_attempts": 0,
+        "classification": None,
+        "meeting_intent": None,
+        "output_content": None,
+        "output_json": None,
+    }
 
 
 def _stringify_values(payload: dict) -> dict:

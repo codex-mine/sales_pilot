@@ -14,36 +14,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.exceptions.errors import LLMProviderError, ValidationError
 from app.models.enums import AIAgentTypeEnum, LLMProviderEnum
-from app.services.ai.llm_client import LLMCompletionResult
 from app.services.ai.pricing import compute_cost_usd
+from app.tests.ai_fakes import FakeChatModel as _FakeChatModel
 from app.tests.conftest import register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
 
 
-class _StubLLMClient:
-    def __init__(self, *, content: str = "stub output", fail: bool = False) -> None:
-        self.content = content
-        self.fail = fail
-        self.calls: list[dict] = []
-
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        self.calls.append(kwargs)
-        if self.fail:
-            raise LLMProviderError("stubbed provider failure")
-        return LLMCompletionResult(
-            content=self.content, input_tokens=100, output_tokens=50, raw_response={}
-        )
-
-
 @pytest.fixture
 def eager_jobs(monkeypatch):
-    """Run AI jobs inline (no Celery) and stub the LLM client."""
-    stub = _StubLLMClient()
+    """Run AI jobs inline (no Celery) and stub the chat model."""
+    stub = _FakeChatModel()
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr(
-        "app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub
-    )
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
     return stub
 
 
@@ -63,7 +46,7 @@ async def _run_research_job(db: AsyncSession, organization_id: str, *, initiated
 
 
 def _org_id(registration: dict) -> str:
-    return registration["data"]["user"]["organization_id"]
+    return registration["data"]["organization_id"]
 
 
 # ─── System template seeding ────────────────────────────────────────────────────
@@ -198,9 +181,9 @@ async def test_job_failure_and_orchestrated_retry(
     db: AsyncSession, client: AsyncClient, monkeypatch
 ) -> None:
     registration = await register_user(client)
-    failing = _StubLLMClient(fail=True)
+    failing = _FakeChatModel(fail=True)
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: failing)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: failing)
 
     with pytest.raises(LLMProviderError):
         await _run_research_job(db, _org_id(registration))
@@ -211,9 +194,7 @@ async def test_job_failure_and_orchestrated_retry(
     assert failed_job["error_message"] == "stubbed provider failure"
 
     # Retry creates a NEW job with parent_job_id — never resurrects the old row.
-    monkeypatch.setattr(
-        "app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: _StubLLMClient()
-    )
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: _FakeChatModel())
     retried = await client.post(f"/api/v1/ai/jobs/{failed_job['id']}/retry")
     assert retried.status_code == 200, retried.text
     new_job = retried.json()["data"]

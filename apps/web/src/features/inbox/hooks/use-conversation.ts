@@ -16,11 +16,23 @@ export interface UseConversationReturn {
   refetch: () => void;
 }
 
+/** The most recent inbound message still has `reply_classification: null` —
+ * AI classification (module 09, now module 13's `reply_agent` graph) is
+ * still in flight for it. There's no job id surfaced on `Message` to drive
+ * `AgentStepTimeline` here, so this just tells the view to keep polling and
+ * show a lightweight "Classifying reply…" indicator instead of the full
+ * step-by-step timeline Research/Email Generation get. */
+function hasPendingClassification(conversation: ConversationDetailResponse | undefined): boolean {
+  const latestInbound = [...(conversation?.items ?? [])].reverse().find((item) => item.direction === "inbound");
+  return Boolean(latestInbound && latestInbound.reply_classification === null);
+}
+
 export function useConversation(conversationId: string | undefined): UseConversationReturn {
   const result = useQuery({
     queryKey: CONVERSATION_QUERY_KEY(conversationId ?? ""),
     queryFn: ({ signal }) => inboxService.getConversation(conversationId as string, signal),
     enabled: Boolean(conversationId),
+    refetchInterval: (query) => (hasPendingClassification(query.state.data) ? 2000 : false),
   });
 
   return {

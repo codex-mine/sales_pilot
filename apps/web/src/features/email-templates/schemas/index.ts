@@ -8,6 +8,7 @@ export const emailTemplateEditSchema = z.object({
   subject: z.string().min(1, "Subject is required.").max(512),
   body_html: z.string().min(1, "Body is required."),
   body_text: z.string().optional(),
+  variables_used: z.array(z.string()).default([]),
   is_active: z.boolean(),
 });
 

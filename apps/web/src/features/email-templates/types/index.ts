@@ -32,6 +32,17 @@ export interface EmailTemplateResponse {
   updated_at: string;
 }
 
+export interface EmailTemplateCreateRequest {
+  name: string;
+  template_type: string;
+  tone?: string;
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  variables_used?: string[];
+  is_active?: boolean;
+}
+
 export interface EmailTemplateUpdateRequest {
   name?: string;
   template_type?: string;
@@ -39,7 +50,12 @@ export interface EmailTemplateUpdateRequest {
   subject?: string;
   body_html?: string;
   body_text?: string;
+  variables_used?: string[];
   is_active?: boolean;
+}
+
+export interface DuplicateEmailTemplateRequest {
+  name?: string;
 }
 
 export interface EmailTemplatesQuery {

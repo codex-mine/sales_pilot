@@ -71,13 +71,12 @@ class AuthContext:
     claims: dict
 
 
-async def get_auth_context(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> AuthContext:
-    token = _extract_access_token(request)
-    if token is None:
-        raise AuthenticationError("Not authenticated.")
-
+async def resolve_auth_context_from_token(token: str, db: AsyncSession) -> AuthContext:
+    """The `Request`-independent half of `get_auth_context`: decode -> load
+    session -> load user -> status check. Factored out so the WebSocket
+    endpoint (`app/api/v1/ws_ai_jobs.py`) can authenticate a token pulled off
+    `WebSocket.cookies`/`.query_params` through the exact same chain the HTTP
+    dependency uses, instead of re-implementing session/user resolution."""
     payload = decode_token(token, expected_type="access")
 
     session_repo = SessionRepository(db)
@@ -95,6 +94,15 @@ async def get_auth_context(
         raise AccountSuspendedError()
 
     return AuthContext(user=user, session=session, claims=payload)
+
+
+async def get_auth_context(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> AuthContext:
+    token = _extract_access_token(request)
+    if token is None:
+        raise AuthenticationError("Not authenticated.")
+    return await resolve_auth_context_from_token(token, db)
 
 
 async def get_current_user(ctx: AuthContext = Depends(get_auth_context)) -> User:

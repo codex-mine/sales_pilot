@@ -1,6 +1,6 @@
 // Mirrors the backend's app/schemas/ai.py exactly (snake_case, same field names).
 
-export const LLM_PROVIDER_CHOICES = ["openai", "anthropic", "groq", "google", "local"] as const;
+export const LLM_PROVIDER_CHOICES = ["openai", "anthropic", "groq", "google", "mistral", "local"] as const;
 export type LLMProvider = (typeof LLM_PROVIDER_CHOICES)[number];
 
 export const LLM_PROVIDER_LABELS: Record<LLMProvider, string> = {
@@ -8,6 +8,7 @@ export const LLM_PROVIDER_LABELS: Record<LLMProvider, string> = {
   anthropic: "Anthropic",
   groq: "Groq",
   google: "Gemini",
+  mistral: "Mistral",
   local: "Ollama",
 };
 
