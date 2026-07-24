@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AlertCircle, Clock3, Flag, Send, Shield, Sparkles, Zap } from "@/icons";
+import { AgentStepTimeline, type AgentStepDefinition } from "@/features/ai/components/agent-step-timeline";
 import { COMPANY_QUERY_KEY } from "@/features/companies/hooks/use-company";
 import { COMPANY_RESEARCH_QUERY_KEY } from "@/features/companies/hooks/use-company-research";
 import {
@@ -38,6 +39,17 @@ const DECISION_AUTHORITY_TONE: Record<DecisionAuthority, "primary" | "info" | "n
   evaluator: "neutral",
   end_user: "neutral",
 };
+
+// Node names must match app/agents/research_agent.py's `@step(...)` names
+// exactly. Prospect analysis has no dedicated graph (falls back to
+// app/agents/generic_agent.py's single "run_llm" node — see
+// app/agents/__init__.py's dispatch table) so it only ever shows one step.
+const COMPANY_RESEARCH_STEPS: AgentStepDefinition[] = [
+  { node: "prepare_context", label: "Preparing research context" },
+  { node: "run_research_llm", label: "Researching company" },
+  { node: "parse_and_validate", label: "Validating results" },
+];
+const PROSPECT_ANALYSIS_STEPS: AgentStepDefinition[] = [{ node: "run_llm", label: "Analyzing prospect fit" }];
 
 export function LeadResearchPanel({ leadId }: LeadResearchPanelProps): React.ReactElement {
   const queryClient = useQueryClient();
@@ -102,22 +114,39 @@ export function LeadResearchPanel({ leadId }: LeadResearchPanelProps): React.Rea
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center gap-2">
-          {isRunning ? (
-            <>
-              <StatusBadge tone="info" pulse>
-                {status.company_job && status.company_job.status !== "completed"
-                  ? "Researching company"
-                  : "Analyzing prospect"}
-              </StatusBadge>
-              <span className="text-body-sm text-muted-foreground">This can take up to a minute…</span>
-            </>
-          ) : status.prospect_job?.status === "failed" ? (
-            <span className="text-body-sm text-danger">
-              Analysis failed: {status.prospect_job.error_message ?? "The AI provider request failed."}
-            </span>
-          ) : (
-            analysis && <span className="text-body-sm text-muted-foreground">Analysis complete.</span>
+        <div className="flex flex-1 flex-col gap-3">
+          <div className="flex items-center gap-2">
+            {isRunning ? (
+              <>
+                <StatusBadge tone="info" pulse>
+                  {status.company_job && status.company_job.status !== "completed"
+                    ? "Researching company"
+                    : "Analyzing prospect"}
+                </StatusBadge>
+                <span className="text-body-sm text-muted-foreground">This can take up to a minute…</span>
+              </>
+            ) : status.prospect_job?.status === "failed" ? (
+              <span className="text-body-sm text-danger">
+                Analysis failed: {status.prospect_job.error_message ?? "The AI provider request failed."}
+              </span>
+            ) : (
+              analysis && <span className="text-body-sm text-muted-foreground">Analysis complete.</span>
+            )}
+          </div>
+          {isRunning && (
+            <AgentStepTimeline
+              jobId={
+                status.company_job && status.company_job.status !== "completed"
+                  ? status.company_job.id
+                  : status.prospect_job?.id
+              }
+              steps={
+                status.company_job && status.company_job.status !== "completed"
+                  ? COMPANY_RESEARCH_STEPS
+                  : PROSPECT_ANALYSIS_STEPS
+              }
+              className="max-w-md pt-1"
+            />
           )}
         </div>
         <Button

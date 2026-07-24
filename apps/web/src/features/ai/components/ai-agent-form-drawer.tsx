@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { applyServerErrors } from "@/lib/api/apply-server-errors";
+import { useAIAgents } from "../hooks/use-ai-agents";
 import { useCreateAIAgent, useUpdateAIAgent } from "../hooks/use-ai-agent-mutations";
 import { aiAgentFormSchema, type AIAgentFormValues } from "../schemas";
 import {
@@ -37,10 +38,14 @@ export interface AIAgentFormDrawerProps {
   defaultAgentType?: AIAgentFormValues["agent_type"];
 }
 
-function toFormValues(agent?: AIAgentResponse, defaultAgentType?: AIAgentFormValues["agent_type"]): AIAgentFormValues {
+function toFormValues(
+  agent: AIAgentResponse | undefined,
+  defaultAgentType: AIAgentFormValues["agent_type"] | undefined,
+  firstAvailableType: AIAgentFormValues["agent_type"] | undefined,
+): AIAgentFormValues {
   return {
     name: agent?.name ?? "",
-    agent_type: (agent?.agent_type as AIAgentFormValues["agent_type"]) ?? defaultAgentType ?? "research",
+    agent_type: (agent?.agent_type as AIAgentFormValues["agent_type"]) ?? defaultAgentType ?? firstAvailableType ?? "research",
     description: agent?.description ?? "",
     provider: (agent?.provider as AIAgentFormValues["provider"]) ?? "anthropic",
     model_name: agent?.model_name ?? "",
@@ -50,20 +55,31 @@ function toFormValues(agent?: AIAgentResponse, defaultAgentType?: AIAgentFormVal
   };
 }
 
-/** Shared create/edit form for an AI Agent (provider/model/temperature config per agent type). */
+/** Shared create/edit form for an AI Agent (provider/model/temperature config per agent type).
+ * One agent per type per organization (server-enforced) — the Capability
+ * select excludes types that already have a configured agent when creating,
+ * so a second "Configure agent" click can never default to (and silently
+ * fail against) an already-taken type. */
 export function AIAgentFormDrawer({ open, onOpenChange, agent, defaultAgentType }: AIAgentFormDrawerProps): React.ReactElement {
   const isEditing = Boolean(agent);
   const { createAgent, isCreating } = useCreateAIAgent();
   const { updateAgent, isUpdating } = useUpdateAIAgent();
+  const { agents } = useAIAgents();
   const isSubmitting = isCreating || isUpdating;
+
+  const configuredTypes = new Set(agents.map((a) => a.agent_type));
+  const availableTypes = isEditing
+    ? AI_AGENT_TYPE_CHOICES
+    : AI_AGENT_TYPE_CHOICES.filter((type) => !configuredTypes.has(type));
+  const firstAvailableType = availableTypes[0];
 
   const form = useForm<AIAgentFormValues>({
     resolver: zodResolver(aiAgentFormSchema),
-    defaultValues: toFormValues(agent, defaultAgentType),
+    defaultValues: toFormValues(agent, defaultAgentType, firstAvailableType),
   });
 
   useEffect(() => {
-    if (open) form.reset(toFormValues(agent, defaultAgentType));
+    if (open) form.reset(toFormValues(agent, defaultAgentType, firstAvailableType));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the drawer opens or the source record changes
   }, [open, agent, defaultAgentType]);
 
@@ -126,20 +142,25 @@ export function AIAgentFormDrawer({ open, onOpenChange, agent, defaultAgentType 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel required>Capability</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isEditing || availableTypes.length === 0}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {AI_AGENT_TYPE_CHOICES.map((type) => (
+                      {availableTypes.map((type) => (
                         <SelectItem key={type} value={type}>
                           {AI_AGENT_TYPE_LABELS[type]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {!isEditing && availableTypes.length === 0 && (
+                    <p className="text-caption text-muted-foreground">
+                      Every capability already has an agent configured — edit or delete one to reconfigure it.
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -248,7 +269,12 @@ export function AIAgentFormDrawer({ open, onOpenChange, agent, defaultAgentType 
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="ai-agent-form" isLoading={isSubmitting}>
+          <Button
+            type="submit"
+            form="ai-agent-form"
+            isLoading={isSubmitting}
+            disabled={!isEditing && availableTypes.length === 0}
+          >
             {isEditing ? "Save changes" : "Create agent"}
           </Button>
         </DrawerFooter>

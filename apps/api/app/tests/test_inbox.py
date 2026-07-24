@@ -27,8 +27,8 @@ from app.models.communication.models import Email, Message
 from app.models.crm.models import Lead
 from app.models.identity.models import Organization, Role
 from app.models.remaining_domains import Notification
-from app.services.ai.llm_client import LLMCompletionResult
 from app.services.email.webhook_signature import sign_generic_webhook
+from app.tests.ai_fakes import FakeChatModel
 from app.tests.conftest import register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
@@ -54,22 +54,34 @@ _ORG_SEND_ADDRESS = "sales@salespilot.app"
 
 
 class _StubLLMClient:
+    """`classification_response` is mutated directly by several tests below
+    (`eager_ai.classification_response = {...}`) — wraps a `FakeChatModel`
+    (module 13's `get_chat_model` seam) whose `responder` closes over `self`
+    so mutating this attribute changes what the *next* classify call
+    returns, matching the original stub's behavior exactly. Also handles the
+    `detect_meeting_intent` node's own call (module 13, only reached when
+    classification is `meeting_requested`) via the "scheduling assistant"
+    system-prompt phrase, which `test_meeting_requested_classification_advances_lead_status`
+    exercises."""
+
     def __init__(self) -> None:
         self.classification_response: dict = {
             "classification": "interested", "confidence": 0.87, "suggested_action": "Send pricing details.",
         }
+        self.model = FakeChatModel(responder=self._respond)
 
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        system_prompt = kwargs.get("system_prompt", "")
+    def _respond(self, system_prompt: str, _user_prompt: str) -> str:
+        if "scheduling assistant" in system_prompt:
+            return json.dumps(
+                {"wants_meeting": True, "proposed_times": ["Tuesday 2pm"], "duration_minutes": 30, "notes": None}
+            )
         if "reply classifier" in system_prompt:
-            content = json.dumps(self.classification_response)
-        elif "sales development representative" in system_prompt:
-            content = json.dumps(_EMAIL_VARIANTS_JSON)
-        elif "sales strategist" in system_prompt:
-            content = json.dumps(_PROSPECT_JSON)
-        else:
-            content = json.dumps(_RESEARCH_JSON)
-        return LLMCompletionResult(content=content, input_tokens=100, output_tokens=50, raw_response={})
+            return json.dumps(self.classification_response)
+        if "sales development representative" in system_prompt:
+            return json.dumps(_EMAIL_VARIANTS_JSON)
+        if "sales strategist" in system_prompt:
+            return json.dumps(_PROSPECT_JSON)
+        return json.dumps(_RESEARCH_JSON)
 
 
 class _StubSenderClient:
@@ -83,7 +95,7 @@ class _StubSenderClient:
 def eager_ai(monkeypatch) -> _StubLLMClient:
     stub = _StubLLMClient()
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub.model)
     return stub
 
 

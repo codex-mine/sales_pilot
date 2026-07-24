@@ -4,7 +4,7 @@ import { SessionList } from "@/features/auth/components/session-list";
 
 export default function SecuritySettingsPage(): React.ReactElement {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Change password</CardTitle>

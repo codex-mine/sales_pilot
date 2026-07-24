@@ -4,9 +4,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableRowActions } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Pencil, Sparkles, Trash2 } from "@/icons";
+import { Copy, Eye, Pencil, Sparkles, Trash2 } from "@/icons";
 import {
   EMAIL_TEMPLATE_TYPE_LABELS,
   EMAIL_TONE_LABELS,
@@ -16,7 +16,9 @@ import {
 } from "../types";
 
 export interface EmailTemplatesTableActions {
+  onPreview: (template: EmailTemplateResponse) => void;
   onEdit: (template: EmailTemplateResponse) => void;
+  onDuplicate: (template: EmailTemplateResponse) => void;
   onDelete: (template: EmailTemplateResponse) => void;
 }
 
@@ -110,10 +112,19 @@ export function buildEmailTemplatesTableColumns(
         const template = row.original;
         return (
           <DataTableRowActions>
+            <DropdownMenuItem onSelect={() => actions.onPreview(template)}>
+              <Eye className="size-4" />
+              Preview
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => actions.onEdit(template)}>
               <Pencil className="size-4" />
               Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => actions.onDuplicate(template)}>
+              <Copy className="size-4" />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem variant="danger" onSelect={() => actions.onDelete(template)}>
               <Trash2 className="size-4" />
               Delete

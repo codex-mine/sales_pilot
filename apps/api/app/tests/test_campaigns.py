@@ -29,8 +29,8 @@ from app.models.crm.models import Lead
 from app.models.identity.models import Role
 from app.repositories.campaign_lead_repository import CampaignLeadRepository
 from app.repositories.email_template_repository import EmailTemplateRepository
-from app.services.ai.llm_client import LLMCompletionResult
 from app.services.campaigns.campaign_scheduler_service import CampaignSchedulerService
+from app.tests.ai_fakes import FakeChatModel
 from app.tests.conftest import TEST_DATABASE_URL, register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
@@ -43,35 +43,33 @@ class _StubSenderClient:
         return SendResult(external_message_id=f"<{uuid.uuid4().hex}@test>", raw_response={})
 
 
-class _StubGenerationLLMClient:
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        system_prompt = kwargs.get("system_prompt", "")
-        if "sales development representative" in system_prompt:
-            content = json.dumps([
-                {"subject": "Quick question", "body_html": "<p>Hi {{ first }}</p>", "body_text": "Hi",
-                 "reasoning": "test"}
-            ])
-        elif "sales strategist" in system_prompt:
-            content = json.dumps({
-                "buying_intent": "high", "priority_score": 80, "recommended_approach": "Lead with ROI.",
-                "value_proposition": "Cut costs.", "predicted_objections": [], "likely_goals": [],
-                "decision_authority": "decision_maker", "best_contact_time": "mornings",
-            })
-        else:
-            content = json.dumps({
-                "summary": "Acme builds widgets.", "products_services": ["Widgets"],
-                "target_customers": "SMBs", "business_model": "B2B", "technologies": [],
-                "competitors": [], "recent_news": [], "pain_points": [], "sales_opportunities": [],
-                "estimated_revenue": None, "funding_stage": None, "growth_signals": [],
-            })
-        return LLMCompletionResult(content=content, input_tokens=50, output_tokens=20, raw_response={})
+def _generation_responder(system_prompt: str, _user_prompt: str) -> str:
+    if "strict editor" in system_prompt:
+        return json.dumps({"passes": True, "feedback": None})
+    if "sales development representative" in system_prompt:
+        return json.dumps([
+            {"subject": "Quick question", "body_html": "<p>Hi {{ first }}</p>", "body_text": "Hi",
+             "reasoning": "test"}
+        ])
+    if "sales strategist" in system_prompt:
+        return json.dumps({
+            "buying_intent": "high", "priority_score": 80, "recommended_approach": "Lead with ROI.",
+            "value_proposition": "Cut costs.", "predicted_objections": [], "likely_goals": [],
+            "decision_authority": "decision_maker", "best_contact_time": "mornings",
+        })
+    return json.dumps({
+        "summary": "Acme builds widgets.", "products_services": ["Widgets"],
+        "target_customers": "SMBs", "business_model": "B2B", "technologies": [],
+        "competitors": [], "recent_news": [], "pain_points": [], "sales_opportunities": [],
+        "estimated_revenue": None, "funding_stage": None, "growth_signals": [],
+    })
 
 
 @pytest.fixture
 def eager_generation(monkeypatch):
-    stub = _StubGenerationLLMClient()
+    stub = FakeChatModel(responder=_generation_responder)
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
     return stub
 
 

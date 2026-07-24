@@ -113,6 +113,7 @@ export {
   Pause,
   Workflow,
   GitBranch,
+  PlugZap,
   Wallet,
   CreditCard,
   Receipt,

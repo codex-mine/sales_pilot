@@ -10,6 +10,7 @@ import { ConfirmDialog, useConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, Sparkles } from "@/icons";
 import { ScheduleMeetingDialog } from "@/features/meetings/components/schedule-meeting-dialog";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
@@ -138,7 +139,7 @@ function ThreadItemCard({ item, leadId }: { item: ThreadItemResponse; leadId: st
 
         {isInbound && (
           <div className="flex flex-col gap-2">
-            {item.reply_classification && (
+            {item.reply_classification ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ClassificationBadge classification={item.reply_classification} />
                 {item.ai_confidence != null && (
@@ -147,6 +148,14 @@ function ThreadItemCard({ item, leadId }: { item: ThreadItemResponse; leadId: st
                   </span>
                 )}
               </div>
+            ) : (
+              // No job id is surfaced on Message to drive the full
+              // AgentStepTimeline here (see useConversation's
+              // hasPendingClassification) — a brief pulsing label instead of
+              // a blank wait while the reply_agent graph classifies.
+              <StatusBadge tone="info" pulse>
+                Classifying reply…
+              </StatusBadge>
             )}
 
             {item.ai_suggested_action && (

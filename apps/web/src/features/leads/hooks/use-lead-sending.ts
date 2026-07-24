@@ -7,6 +7,7 @@ import { leadService } from "../services/lead.service";
 import type {
   BulkSendRequest,
   BulkSendResponse,
+  ComposeEmailRequest,
   EmailPreviewResponse,
   EmailResponse,
   OutboxEmailResponse,
@@ -23,6 +24,31 @@ function invalidateLeadEmailQueries(queryClient: ReturnType<typeof useQueryClien
   void queryClient.invalidateQueries({ queryKey: LEAD_EMAIL_DRAFTS_QUERY_KEY(leadId) });
   void queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(leadId) });
   void queryClient.invalidateQueries({ queryKey: ["emails", "outbox"] });
+}
+
+export interface UseComposeLeadEmailReturn {
+  composeEmail: (args: { leadId: string; payload: ComposeEmailRequest }) => Promise<EmailResponse>;
+  isComposing: boolean;
+}
+
+/** Phase X Issue 08 — a hand-written email, independent of AI generation.
+ * Lands in the exact same "Emails" list on the Lead Detail page as
+ * generated drafts, since the backend returns every Email for the lead
+ * regardless of source. */
+export function useComposeLeadEmail(): UseComposeLeadEmailReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: ({ leadId, payload }: { leadId: string; payload: ComposeEmailRequest }) =>
+      leadService.composeLeadEmail(leadId, payload),
+    onSuccess: (email, { leadId }) => {
+      invalidateLeadEmailQueries(queryClient, leadId);
+      toast.success(email.current_status === "sent" ? "Email sent." : "Email saved as draft.");
+    },
+    onError: (error) => toast.error(normalizeApiError(error).message),
+  });
+
+  return { composeEmail: (args) => mutation.mutateAsync(args), isComposing: mutation.isPending };
 }
 
 export interface UseSendEmailReturn {

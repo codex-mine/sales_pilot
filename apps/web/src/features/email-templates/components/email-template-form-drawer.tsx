@@ -16,9 +16,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { TagInput } from "@/components/ui/tag-input";
 import { Textarea } from "@/components/ui/textarea";
 import { applyServerErrors } from "@/lib/api/apply-server-errors";
-import { useUpdateEmailTemplate } from "../hooks/use-email-template-mutations";
+import { useCreateEmailTemplate, useUpdateEmailTemplate } from "../hooks/use-email-template-mutations";
 import { emailTemplateEditSchema, type EmailTemplateEditValues } from "../schemas";
 import {
   EMAIL_TEMPLATE_TYPE_CHOICES,
@@ -28,10 +29,11 @@ import {
   type EmailTemplateResponse,
 } from "../types";
 
-export interface EmailTemplateEditDrawerProps {
+export interface EmailTemplateFormDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  template: EmailTemplateResponse | undefined;
+  /** Present for edit, absent for create. */
+  template?: EmailTemplateResponse;
 }
 
 function toFormValues(template: EmailTemplateResponse | undefined): EmailTemplateEditValues {
@@ -42,16 +44,23 @@ function toFormValues(template: EmailTemplateResponse | undefined): EmailTemplat
     subject: template?.subject ?? "",
     body_html: template?.body_html ?? "",
     body_text: template?.body_text ?? "",
+    variables_used: template?.variables_used ?? [],
     is_active: template?.is_active ?? true,
   };
 }
 
-export function EmailTemplateEditDrawer({
-  open,
-  onOpenChange,
-  template,
-}: EmailTemplateEditDrawerProps): React.ReactElement {
+/** Shared create/edit form — manual (non-AI) templates share the exact same
+ * fields AI-generated ones do (see `EmailTemplate` model's own docstring:
+ * "from a usage perspective they are identical"). No rich-text/WYSIWYG
+ * editor exists in this codebase yet, so body content is edited as raw
+ * HTML in a textarea, same as the AI-generated-template edit flow already
+ * did — adding a new editor dependency for this form alone would be scope
+ * beyond what was asked. */
+export function EmailTemplateFormDrawer({ open, onOpenChange, template }: EmailTemplateFormDrawerProps): React.ReactElement {
+  const isEditing = Boolean(template);
+  const { createTemplate, isCreating } = useCreateEmailTemplate();
   const { updateTemplate, isUpdating } = useUpdateEmailTemplate();
+  const isSubmitting = isCreating || isUpdating;
 
   const form = useForm<EmailTemplateEditValues>({
     resolver: zodResolver(emailTemplateEditSchema),
@@ -64,12 +73,15 @@ export function EmailTemplateEditDrawer({
   }, [open, template]);
 
   async function onSubmit(values: EmailTemplateEditValues): Promise<void> {
-    if (!template) return;
     try {
-      await updateTemplate({
-        templateId: template.id,
-        payload: { ...values, body_text: values.body_text || undefined },
-      });
+      if (isEditing && template) {
+        await updateTemplate({
+          templateId: template.id,
+          payload: { ...values, body_text: values.body_text || undefined },
+        });
+      } else {
+        await createTemplate({ ...values, body_text: values.body_text || undefined });
+      }
       onOpenChange(false);
     } catch (error) {
       applyServerErrors(error, form.setError);
@@ -80,8 +92,12 @@ export function EmailTemplateEditDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-w-lg">
         <DrawerHeader>
-          <DrawerTitle>Edit email template</DrawerTitle>
-          <DrawerDescription>Update this reusable template&apos;s content and settings.</DrawerDescription>
+          <DrawerTitle>{isEditing ? "Edit email template" : "Create email template"}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? "Update this reusable template's content and settings."
+              : "Write a reusable template from scratch — no AI generation needed."}
+          </DrawerDescription>
         </DrawerHeader>
         <Form {...form}>
           <form
@@ -109,7 +125,7 @@ export function EmailTemplateEditDrawer({
                 name="template_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>Type</FormLabel>
+                    <FormLabel required>Category</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
@@ -161,7 +177,7 @@ export function EmailTemplateEditDrawer({
                 <FormItem>
                   <FormLabel required>Subject</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input placeholder="e.g. Quick question, {{ lead.first_name }}" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -175,7 +191,7 @@ export function EmailTemplateEditDrawer({
                 <FormItem>
                   <FormLabel required>Body (HTML)</FormLabel>
                   <FormControl>
-                    <Textarea rows={10} {...field} />
+                    <Textarea rows={10} placeholder="<p>Hi {{ lead.first_name }},</p>" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -190,6 +206,20 @@ export function EmailTemplateEditDrawer({
                   <FormLabel>Plain-text fallback</FormLabel>
                   <FormControl>
                     <Textarea rows={5} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="variables_used"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Variables used</FormLabel>
+                  <FormControl>
+                    <TagInput tags={field.value} onTagsChange={field.onChange} placeholder="e.g. lead.first_name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -214,8 +244,8 @@ export function EmailTemplateEditDrawer({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="email-template-form" isLoading={isUpdating}>
-            Save changes
+          <Button type="submit" form="email-template-form" isLoading={isSubmitting}>
+            {isEditing ? "Save changes" : "Create template"}
           </Button>
         </DrawerFooter>
       </DrawerContent>

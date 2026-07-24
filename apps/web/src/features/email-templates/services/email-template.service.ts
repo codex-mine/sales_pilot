@@ -1,6 +1,8 @@
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse } from "@/types/api";
 import type {
+  DuplicateEmailTemplateRequest,
+  EmailTemplateCreateRequest,
   EmailTemplateResponse,
   EmailTemplatesQuery,
   EmailTemplateUpdateRequest,
@@ -29,6 +31,24 @@ export async function getEmailTemplate(templateId: string, signal?: AbortSignal)
   return data.data;
 }
 
+export async function createEmailTemplate(payload: EmailTemplateCreateRequest): Promise<EmailTemplateResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailTemplateResponse>>("/email-templates", payload);
+  if (!data.data) throw new Error("Email template creation failed.");
+  return data.data;
+}
+
+export async function duplicateEmailTemplate(
+  templateId: string,
+  payload: DuplicateEmailTemplateRequest = {},
+): Promise<EmailTemplateResponse> {
+  const { data } = await apiClient.post<ApiResponse<EmailTemplateResponse>>(
+    `/email-templates/${templateId}/duplicate`,
+    payload,
+  );
+  if (!data.data) throw new Error("Email template duplication failed.");
+  return data.data;
+}
+
 export async function updateEmailTemplate(
   templateId: string,
   payload: EmailTemplateUpdateRequest,
@@ -48,6 +68,8 @@ export async function deleteEmailTemplate(templateId: string): Promise<void> {
 export const emailTemplateService = {
   getEmailTemplates,
   getEmailTemplate,
+  createEmailTemplate,
+  duplicateEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
 };

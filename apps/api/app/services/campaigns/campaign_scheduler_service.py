@@ -382,6 +382,22 @@ class CampaignSchedulerService:
                 "next_step_id": next_step.id, "next_action_at": run_at,
             },
         )
+        # Only worth surfacing when there's an actual wait — an immediate
+        # (delay_days=delay_hours=0) advance isn't a "time left" the owner
+        # needs a countdown notification for.
+        owner_id = campaign.owner_id
+        if owner_id and (next_step.delay_days > 0 or next_step.delay_hours > 0):
+            lead = campaign_lead.lead
+            await self.notifications.create(
+                organization_id=campaign.organization_id, user_id=owner_id,
+                notification_type=NotificationTypeEnum.CAMPAIGN_STEP_UPCOMING.value,
+                title=f"Next step scheduled: {campaign.name}",
+                body=(
+                    f"The next step for {lead.full_name} runs "
+                    f"{run_at.strftime('%b %d, %Y at %H:%M UTC')}."
+                ) if lead else f"The next step in '{campaign.name}' runs {run_at.strftime('%b %d, %Y at %H:%M UTC')}.",
+                entity_type="campaign_lead", entity_id=campaign_lead.id, action_url=f"/campaigns/{campaign.id}",
+            )
         await self.db.commit()
 
     async def _complete(self, campaign_lead: CampaignLead, campaign: Campaign) -> None:
@@ -415,6 +431,14 @@ class CampaignSchedulerService:
                 campaign, {"status": CampaignStatusEnum.COMPLETED.value, "completed_at": datetime.now(timezone.utc)},
                 updated_by=None,
             )
+            if campaign.owner_id:
+                await self.notifications.create(
+                    organization_id=campaign.organization_id, user_id=campaign.owner_id,
+                    notification_type=NotificationTypeEnum.CAMPAIGN_COMPLETED.value,
+                    title="Campaign completed",
+                    body=f"'{campaign.name}' has finished — every enrolled lead has reached a terminal step.",
+                    entity_type="campaign", entity_id=campaign.id, action_url=f"/campaigns/{campaign.id}",
+                )
             await self.db.commit()
 
 

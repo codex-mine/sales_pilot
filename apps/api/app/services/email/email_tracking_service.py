@@ -26,13 +26,14 @@ from user_agents import parse as parse_user_agent
 from app.core.config import get_settings
 from app.exceptions.errors import NotFoundError, ValidationError
 from app.models.communication.models import Email, EmailEvent
-from app.models.enums import ActivityTypeEnum, AuditActionEnum, EmailEventTypeEnum, LeadStatusEnum
+from app.models.enums import ActivityTypeEnum, AuditActionEnum, EmailEventTypeEnum, LeadStatusEnum, NotificationTypeEnum
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.email_event_repository import EmailEventRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_template_repository import EmailTemplateRepository
 from app.repositories.lead_repository import LeadRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.schemas.leads import LeadUpdateRequest
 from app.security.tokens import sign_click_url, verify_click_signature
 from app.services.email.email_status_resolver import next_status
@@ -73,17 +74,23 @@ class EmailTrackingService:
         self.activities = ActivityRepository(db)
         self.audit_log = AuditLogRepository(db)
         self.lead_service = LeadService(db)
+        self.notifications = NotificationRepository(db)
 
     # ─── Send-time instrumentation (called from EmailSendingService) ───────────
 
     async def instrument_content(
-        self, email: Email, body_html: str, body_text: str, unsubscribe_url: str
+        self, email: Email, body_html: str, body_text: str, unsubscribe_url: str, *, include_open_pixel: bool = True
     ) -> tuple[str, str]:
         """Rewrites every link except the unsubscribe link to route through
         the click-tracking redirect, and appends the open-tracking pixel.
         Generates and persists `Email.tracking_pixel_id` first if module 07
         hasn't set one yet — tracking owns this field, per the module spec's
-        own coordination note."""
+        own coordination note.
+
+        `include_open_pixel=False` is used by `EmailSendingService.preview()`:
+        a preview is rendered in the sender's own browser, which would fetch
+        a live `<img>` pixel immediately and falsely record a real "opened"
+        event before the email has even reached the recipient."""
         if not email.tracking_pixel_id:
             email.tracking_pixel_id = secrets.token_urlsafe(24)
             await self.db.flush()
@@ -106,7 +113,7 @@ class EmailTrackingService:
                 anchor["href"] = redirect_url
             instrumented_html = str(soup)
 
-        if email.is_open_tracked:
+        if email.is_open_tracked and include_open_pixel:
             pixel_url = f"{settings.api_base_url}/api/v1/track/open/{pixel_id}.png"
             pixel_tag = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
             instrumented_html = f"{instrumented_html}{pixel_tag}"
@@ -251,6 +258,15 @@ class EmailTrackingService:
                 await self.lead_service.update(
                     lead, payload=LeadUpdateRequest(status=new_lead_status), actor=actor
                 )
+
+        if event_type == EmailEventTypeEnum.OPENED and lead.owner_id:
+            await self.notifications.create(
+                organization_id=fresh_email.organization_id, user_id=lead.owner_id,
+                notification_type=NotificationTypeEnum.EMAIL_OPENED.value,
+                title="Email opened",
+                body=f"{lead.full_name} opened your email.",
+                entity_type="email", entity_id=fresh_email.id, action_url=f"/leads/{lead.id}",
+            )
 
         if actor is not None:
             await self.activities.record(

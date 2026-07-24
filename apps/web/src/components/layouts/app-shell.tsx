@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useTheme } from "next-themes";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Bell,
   Bot,
@@ -17,10 +18,12 @@ import {
   Mail,
   Menu,
   MessagesSquare,
+  Moon,
   Rocket,
   Settings,
   Settings2,
   Shield,
+  Sun,
   User as UserIcon,
   Users,
   type IconComponent,
@@ -98,6 +101,10 @@ const navigation: NavEntry[] = [
 ];
 
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): React.ReactElement {
+  // Same unread-reply count the header's MessagesQuickLink already shows —
+  // reused here so the sidebar's own Inbox entry surfaces it too.
+  const { meta } = useConversations({ unread_only: true, page: 1, page_size: 1 });
+
   return (
     <SidebarNav>
       {navigation.map((entry) => {
@@ -130,6 +137,7 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
                 ? pathname.startsWith(entry.href)
                 : pathname === entry.href
             }
+            badge={entry.href === "/inbox" ? <UnreadCountBadge count={meta.total} /> : undefined}
             onClick={onNavigate}
           />
         );
@@ -167,6 +175,31 @@ function MessagesQuickLink(): React.ReactElement {
       <MessagesSquare className="size-4" />
       <UnreadCountBadge count={meta.total} />
     </Link>
+  );
+}
+
+/** Light/Dark toggle — reads/writes the real `next-themes` context (the
+ * provider in `app-providers.tsx` already applies `.dark` on `<html>`; it
+ * just had no UI control calling `setTheme` anywhere in the app before
+ * this). Persists via `next-themes`'s own localStorage key automatically,
+ * so it survives a refresh with no extra wiring. */
+function ThemeToggle(): React.ReactElement {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && resolvedTheme === "dark";
+
+  return (
+    <button
+      type="button"
+      className={HEADER_ICON_BUTTON_CLASS}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+    >
+      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
   );
 }
 
@@ -294,6 +327,7 @@ export function AppShell({ children }: { children: ReactNode }): React.ReactElem
           right={
             <div className="flex items-center gap-1">
               <MessagesQuickLink />
+              <ThemeToggle />
               <NotificationsQuickMenu />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

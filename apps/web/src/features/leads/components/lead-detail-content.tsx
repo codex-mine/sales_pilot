@@ -165,7 +165,7 @@ export function LeadDetailContent({ leadId }: LeadDetailContentProps): React.Rea
               <LeadResearchPanel leadId={lead.id} />
             </TabsContent>
             <TabsContent value="outreach">
-              <LeadOutreachPanel leadId={lead.id} />
+              <LeadOutreachPanel leadId={lead.id} lead={lead} />
             </TabsContent>
             <TabsContent value="conversations">
               <Card>

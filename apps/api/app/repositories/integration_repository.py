@@ -51,6 +51,29 @@ class IntegrationRepository:
         )
         return list(rows)
 
+    async def list_org_level_by_type(self, organization_id: uuid.UUID, integration_type: str) -> list[Integration]:
+        """Same as `list_org_level` but filtered to one type — used for
+        multi-mailbox SMTP sender management, where an org now genuinely has
+        more than one `integration_type="smtp"` row (unlike `get_org_level`'s
+        single-row convention)."""
+        rows = await self.db.scalars(
+            select(Integration).where(
+                Integration.organization_id == organization_id,
+                Integration.user_id.is_(None),
+                Integration.integration_type == integration_type,
+                Integration.deleted_at.is_(None),
+            ).order_by(Integration.created_at)
+        )
+        return list(rows)
+
+    async def get_by_id(self, integration_id: uuid.UUID, organization_id: uuid.UUID) -> Integration | None:
+        return await self.db.scalar(
+            select(Integration).where(
+                Integration.id == integration_id, Integration.organization_id == organization_id,
+                Integration.deleted_at.is_(None),
+            )
+        )
+
     async def create(self, *, organization_id: uuid.UUID, created_by: uuid.UUID | None, **fields: Any) -> Integration:
         integration = Integration(
             organization_id=organization_id, created_by=created_by, updated_by=created_by, **fields

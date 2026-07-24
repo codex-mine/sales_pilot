@@ -23,8 +23,7 @@ scripts/       Developer automation
 
 ## Architecture
 
-The API is versioned under `/api/v1`, returns a consistent `success/data/message/errors/meta` envelope, and is organized by boundaries rather than technical dumping grounds. SQLAlchemy models define the initial identity and tenancy layer. Opaque refresh tokens are stored hashed, while short-lived access tokens are JWTs. Future services should use organization-scoped repository queries and dependency injection.
-
+The API is versioned under `/api/v1`, returns a consistent `success/data/message/errors/meta` envelope, and is organized by boundaries rather than technical dumping grounds. SQLAlchemy models define the initial identity and tenancy layer. O5
 ## Development standards
 
 - TypeScript is strict; do not introduce `any`.

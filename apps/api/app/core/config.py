@@ -89,7 +89,7 @@ class Settings(BaseSettings):
 
     ai_default_provider: str = "groq"
     ai_default_model: str = "llama-3.1-8b-instant"
-    ai_default_temperature: float = 0.7
+    ai_default_temperature: float = 0.2
     ai_default_max_tokens: int = 2048
     ai_max_retries: int = 3
     ai_job_timeout_seconds: int = 120

@@ -11,6 +11,7 @@ never hits a real network or a real LLM provider.
 
 import json
 import uuid
+from collections.abc import Callable
 
 import pytest
 from httpx import AsyncClient
@@ -21,7 +22,7 @@ from app.exceptions.errors import AIOutputParsingError
 from app.models.crm.models import Lead
 from app.repositories.ai_job_repository import AIJobRepository
 from app.repositories.user_repository import UserRepository
-from app.services.ai.llm_client import LLMCompletionResult
+from app.tests.ai_fakes import FakeChatModel
 from app.tests.conftest import register_user, unique_email
 
 pytestmark = pytest.mark.asyncio
@@ -53,36 +54,26 @@ _PROSPECT_JSON = {
 }
 
 
-class _StubResearchLLMClient:
-    """Returns canned JSON keyed by which system prompt is in play — the
-    research_company and analyze_prospect system prompts are distinct
-    enough ("sales research analyst" vs "sales strategist") to branch on."""
+def _research_responder(malformed: bool = False) -> Callable[[str, str], str]:
+    """Branches on which system prompt is in play — research_company and
+    analyze_prospect are distinct enough ("sales research analyst" vs
+    "sales strategist") to tell apart from one shared stub."""
 
-    def __init__(self, *, fail: bool = False, malformed: bool = False) -> None:
-        self.fail = fail
-        self.malformed = malformed
-        self.calls: list[dict] = []
+    def _respond(system_prompt: str, _user_prompt: str) -> str:
+        if malformed:
+            return "not json{{{"
+        return json.dumps(_PROSPECT_JSON if "sales strategist" in system_prompt else _RESEARCH_JSON)
 
-    async def complete(self, **kwargs) -> LLMCompletionResult:
-        self.calls.append(kwargs)
-        if self.fail:
-            from app.exceptions.errors import LLMProviderError
-
-            raise LLMProviderError("stubbed provider failure")
-        if self.malformed:
-            return LLMCompletionResult(content="not json{{{", input_tokens=10, output_tokens=5, raw_response={})
-        system_prompt = kwargs.get("system_prompt", "")
-        content = json.dumps(_PROSPECT_JSON if "sales strategist" in system_prompt else _RESEARCH_JSON)
-        return LLMCompletionResult(content=content, input_tokens=120, output_tokens=80, raw_response={})
+    return _respond
 
 
 @pytest.fixture
 def eager_research(monkeypatch):
-    """Eager AI jobs (no Celery) + a stub LLM client returning canned
+    """Eager AI jobs (no Celery) + a stub chat model returning canned
     structured JSON for both research_company and analyze_prospect."""
-    stub = _StubResearchLLMClient()
+    stub = FakeChatModel(responder=_research_responder())
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
     return stub
 
 
@@ -219,9 +210,9 @@ async def test_company_research_staleness_skips_unless_forced(
 async def test_malformed_json_fails_ai_job_cleanly(db: AsyncSession, client: AsyncClient, monkeypatch) -> None:
     registration = await register_user(client)
     company = await _create_company(client)
-    stub = _StubResearchLLMClient(malformed=True)
+    stub = FakeChatModel(responder=_research_responder(malformed=True))
     monkeypatch.setattr(get_settings(), "ai_execute_jobs_eagerly", True)
-    monkeypatch.setattr("app.services.ai.ai_job_service.get_llm_client", lambda *a, **k: stub)
+    monkeypatch.setattr("app.agents.base.get_chat_model", lambda *a, **k: stub)
 
     from app.services.ai.company_research_service import CompanyResearchService
 

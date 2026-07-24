@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Mail } from "@/icons";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useDeleteEmailTemplate } from "../hooks/use-email-template-mutations";
+import { useDeleteEmailTemplate, useDuplicateEmailTemplate } from "../hooks/use-email-template-mutations";
 import { useEmailTemplates } from "../hooks/use-email-templates";
 import {
   EMAIL_TEMPLATE_TYPE_CHOICES,
@@ -22,7 +22,8 @@ import {
   type EmailTemplatesQuery,
 } from "../types";
 import { buildEmailTemplatesTableColumns } from "./email-templates-table-columns";
-import { EmailTemplateEditDrawer } from "./email-template-edit-drawer";
+import { EmailTemplateFormDrawer } from "./email-template-form-drawer";
+import { EmailTemplatePreviewDialog } from "./email-template-preview-dialog";
 
 const TYPE_OPTIONS: MultiSelectOption[] = EMAIL_TEMPLATE_TYPE_CHOICES.map((type) => ({
   value: type,
@@ -40,6 +41,7 @@ export function EmailTemplatesTable(): React.ReactElement {
   const [toneFilter, setToneFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplateResponse | undefined>(undefined);
+  const [previewingTemplate, setPreviewingTemplate] = useState<EmailTemplateResponse | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<EmailTemplateResponse | null>(null);
   const deleteConfirm = useConfirmDialog();
 
@@ -56,11 +58,14 @@ export function EmailTemplatesTable(): React.ReactElement {
 
   const { templates, meta, isLoading } = useEmailTemplates(query);
   const { deleteTemplate, isDeleting } = useDeleteEmailTemplate();
+  const { duplicateTemplate } = useDuplicateEmailTemplate();
 
   const columns = useMemo(
     () =>
       buildEmailTemplatesTableColumns({
+        onPreview: setPreviewingTemplate,
         onEdit: setEditingTemplate,
+        onDuplicate: (template) => void duplicateTemplate(template.id),
         onDelete: (template) => {
           setPendingDelete(template);
           deleteConfirm.open();
@@ -161,7 +166,7 @@ export function EmailTemplatesTable(): React.ReactElement {
                   <EmptyState
                     icon={Mail}
                     title="No email templates yet"
-                    description="Approve an AI-generated email and save it as a template to see it here."
+                    description="Create one from scratch, or approve an AI-generated email and save it as a template."
                   />
                 </TableCell>
               </TableRow>
@@ -174,10 +179,15 @@ export function EmailTemplatesTable(): React.ReactElement {
         <Pagination page={page} pageCount={Math.max(Math.ceil(meta.total / meta.page_size), 1)} onPageChange={setPage} />
       </div>
 
-      <EmailTemplateEditDrawer
+      <EmailTemplateFormDrawer
         open={Boolean(editingTemplate)}
         onOpenChange={(open) => !open && setEditingTemplate(undefined)}
         template={editingTemplate}
+      />
+      <EmailTemplatePreviewDialog
+        open={Boolean(previewingTemplate)}
+        onOpenChange={(open) => !open && setPreviewingTemplate(undefined)}
+        template={previewingTemplate}
       />
       <ConfirmDialog
         open={deleteConfirm.isOpen}

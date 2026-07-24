@@ -23,6 +23,14 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/
 /** The API's origin (no `/api/v1` suffix) — for media/static file URLs like organization logos, which the backend returns as paths relative to its own root, not under the versioned API prefix. */
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+$/, "");
 
+/**
+ * The API's origin with `http(s)` swapped for `ws(s)` — used only by
+ * `useAIJobStream` (module 13) to open the live AI-job WebSocket. Derived
+ * from `API_BASE_URL` the same way `API_ORIGIN` is, rather than a second
+ * hardcoded base URL read from its own env var.
+ */
+export const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+
 /** Resolves a backend-relative media path (e.g. `/media/organizations/...`) to an absolute URL. Already-absolute URLs pass through unchanged. */
 export function getMediaUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined;
@@ -62,6 +70,19 @@ let inMemoryAccessToken: string | null = null;
 /** Called by the auth store whenever it obtains a fresh access token (login/refresh/register). */
 export function setInMemoryAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
+}
+
+/**
+ * Read-only access for `useAIJobStream` (module 13): the native browser
+ * `WebSocket` API can't set an `Authorization` header or read the httpOnly
+ * `access_token` cookie into JS, so for deployments where that cookie
+ * doesn't reach a cross-site WS handshake, this in-memory token — already
+ * kept around for exactly this kind of Bearer-style need — is passed as a
+ * `?token=` query param instead. See `app/api/v1/ws_ai_jobs.py`'s
+ * `_extract_ws_token` for the matching backend side.
+ */
+export function getInMemoryAccessToken(): string | null {
+  return inMemoryAccessToken;
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {

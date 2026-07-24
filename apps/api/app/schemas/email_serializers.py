@@ -5,8 +5,9 @@ import enum
 
 from app.models.campaigns.models import EmailTemplate
 from app.models.communication.models import Email
+from app.models.remaining_domains import Integration
 from app.schemas.email_generation import EmailResponse, EmailTemplateResponse
-from app.schemas.email_sending import OutboxEmailResponse
+from app.schemas.email_sending import OutboxEmailResponse, SenderMailboxResponse
 
 
 def _ev(value):
@@ -82,4 +83,25 @@ def serialize_email_template(template: EmailTemplate) -> EmailTemplateResponse:
         total_replied=template.total_replied,
         created_at=template.created_at,
         updated_at=template.updated_at,
+    )
+
+
+def serialize_sender_mailbox(mailbox: Integration) -> SenderMailboxResponse:
+    config = mailbox.config or {}
+    use_tls = bool(config.get("use_tls", True))
+    return SenderMailboxResponse(
+        id=str(mailbox.id),
+        name=mailbox.name,
+        email_address=mailbox.external_account_email,
+        host=config.get("host", ""),
+        port=int(config.get("port", 587)),
+        username=config.get("username"),
+        encryption_type=config.get("encryption_type") or ("starttls" if use_tls else "none"),
+        from_name=config.get("from_name"),
+        reply_to=config.get("reply_to"),
+        is_default=bool(config.get("is_default", False)),
+        is_active=mailbox.is_active,
+        daily_send_limit=config.get("daily_send_limit"),
+        created_at=mailbox.created_at,
+        updated_at=mailbox.updated_at,
     )
