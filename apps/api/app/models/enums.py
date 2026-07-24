@@ -354,11 +354,14 @@ class NotificationTypeEnum(str, enum.Enum):
     # Column is a plain String(50) (see Notification model), so this member
     # is migration-free — same pattern as IntegrationTypeEnum's later entries.
     MEETING_REMINDER = "meeting_reminder"
+    EMAIL_SENT = "email_sent"
+    EMAIL_OPENED = "email_opened"
     EMAIL_FAILED = "email_failed"
     AI_RESEARCH_DONE = "ai_research_done"
     AI_EMAIL_GENERATED = "ai_email_generated"
     DAILY_SUMMARY = "daily_summary"
     LEAD_IMPORTED = "lead_imported"
+    CAMPAIGN_STEP_UPCOMING = "campaign_step_upcoming"
     CAMPAIGN_COMPLETED = "campaign_completed"
     SYSTEM = "system"
 

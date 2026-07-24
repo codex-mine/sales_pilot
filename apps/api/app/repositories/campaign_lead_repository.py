@@ -84,7 +84,9 @@ class CampaignLeadRepository:
     async def list_for_lead(self, lead_id: uuid.UUID, organization_id: uuid.UUID) -> list[CampaignLead]:
         result = await self.db.scalars(
             select(CampaignLead)
-            .options(selectinload(CampaignLead.campaign), selectinload(CampaignLead.next_step))
+            .options(
+                selectinload(CampaignLead.lead), selectinload(CampaignLead.campaign), selectinload(CampaignLead.next_step)
+            )
             .where(CampaignLead.lead_id == lead_id, CampaignLead.organization_id == organization_id)
             .order_by(CampaignLead.enrolled_at.desc())
         )

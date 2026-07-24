@@ -24,14 +24,14 @@ export interface EnrollLeadsDialogProps {
  * selection into this campaign's active sequence. */
 export function EnrollLeadsDialog({ open, onOpenChange, campaignId }: EnrollLeadsDialogProps): React.ReactElement {
   const [leadIds, setLeadIds] = useState<string[]>([]);
-  const { leads, isLoading } = useLeads({ page_size: 500, archived: false });
+  const { leads, isLoading } = useLeads({ page_size: 100, archived: false });
   const { bulkEnroll, isEnrolling } = useBulkEnrollLeads();
 
   const options: MultiSelectOption[] = leads.map((lead) => ({
     value: lead.id,
     label: lead.company_name ? `${lead.full_name} (${lead.company_name})` : lead.full_name,
   }));
-
+  
   async function handleEnroll(): Promise<void> {
     if (leadIds.length === 0) return;
     await bulkEnroll({ campaignId, payload: { lead_ids: leadIds } });

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog, useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Rocket, UserMinus } from "@/icons";
+import { AlertTriangle, Rocket, UserMinus } from "@/icons";
 import { useUnenrollCampaignLead } from "../hooks/use-campaign-enrollment";
 import { useLeadCampaigns } from "../hooks/use-lead-campaigns";
 import type { CampaignLeadResponse } from "../types";
@@ -19,7 +19,7 @@ export interface LeadCampaignsPanelProps {
 }
 
 export function LeadCampaignsPanel({ leadId }: LeadCampaignsPanelProps): React.ReactElement {
-  const { campaignLeads, isLoading } = useLeadCampaigns(leadId);
+  const { campaignLeads, isLoading, isError, errorMessage } = useLeadCampaigns(leadId);
   const { unenroll, isUnenrolling } = useUnenrollCampaignLead();
   const [pendingUnenroll, setPendingUnenroll] = useState<CampaignLeadResponse | null>(null);
   const unenrollConfirm = useConfirmDialog();
@@ -29,6 +29,16 @@ export function LeadCampaignsPanel({ leadId }: LeadCampaignsPanelProps): React.R
       <div className="flex flex-col gap-3">
         <Skeleton className="h-24 w-full" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Couldn't load campaigns"
+        description={errorMessage ?? "Something went wrong while loading this lead's campaign enrollments."}
+      />
     );
   }
 

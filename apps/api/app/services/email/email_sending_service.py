@@ -30,13 +30,14 @@ from app.exceptions.errors import EmailSendError, NotFoundError, RecipientSuppre
 from app.models.campaigns.models import Campaign, CampaignLead
 from app.models.communication.models import Conversation, Email
 from app.models.crm.models import Lead
-from app.models.enums import ActivityTypeEnum, AuditActionEnum, LeadStatusEnum
+from app.models.enums import ActivityTypeEnum, AuditActionEnum, LeadStatusEnum, NotificationTypeEnum
 from app.models.identity.models import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_template_repository import EmailTemplateRepository
 from app.repositories.lead_repository import LeadRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.schemas.leads import LeadUpdateRequest
 from app.security.tokens import create_unsubscribe_token
@@ -62,6 +63,7 @@ class EmailSendingService:
         self.audit_log = AuditLogRepository(db)
         self.lead_service = LeadService(db)
         self.templates = EmailTemplateRepository(db)
+        self.notifications = NotificationRepository(db)
 
     async def require_email(self, email_id: uuid.UUID, organization_id: uuid.UUID) -> Email:
         email = await self.emails.get_by_id(email_id, organization_id)
@@ -226,7 +228,7 @@ class EmailSendingService:
         organization = await self.organizations.get_by_id(organization_id)
         body_html, body_text, unsubscribe_url = self._inject_compliance_footer(email, lead, organization)
         body_html, body_text = await EmailTrackingService(self.db).instrument_content(
-            email, body_html, body_text, unsubscribe_url
+            email, body_html, body_text, unsubscribe_url, include_open_pixel=False
         )
         await self.db.commit()  # persists tracking_pixel_id if this is the first time it was generated
         return {
@@ -359,6 +361,13 @@ class EmailSendingService:
             activity_type=ActivityTypeEnum.EMAIL_SENT,
             summary=f"Email sent to {lead.full_name} by {actor.full_name}",
         )
+        await self.notifications.create(
+            organization_id=email.organization_id, user_id=lead.owner_id or actor.id,
+            notification_type=NotificationTypeEnum.EMAIL_SENT.value,
+            title="Email sent successfully",
+            body=f"Your email to {lead.full_name} was sent.",
+            entity_type="email", entity_id=email.id, action_url=f"/leads/{lead.id}",
+        )
         fresh_lead = await self.leads.get_by_id(lead.id, lead.organization_id)
         if fresh_lead is not None and fresh_lead.status in (
             LeadStatusEnum.NEW.value, LeadStatusEnum.RESEARCHING.value,
@@ -414,6 +423,15 @@ class EmailSendingService:
             action=AuditActionEnum.UPDATE, resource_type="email", resource_id=email.id,
             changes={"event": "email_send_failed", "error": str(exc), "retry_count": new_retry_count},
         )
+        lead = await self.leads.get_by_id(email.lead_id, email.organization_id)
+        if lead is not None:
+            await self.notifications.create(
+                organization_id=email.organization_id, user_id=lead.owner_id or actor.id,
+                notification_type=NotificationTypeEnum.EMAIL_FAILED.value,
+                title="Email failed to send",
+                body=f"Your email to {lead.full_name} could not be delivered: {exc}",
+                entity_type="email", entity_id=email.id, action_url=f"/leads/{lead.id}",
+            )
         await self.db.commit()
         raise exc
 

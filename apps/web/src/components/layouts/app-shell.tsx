@@ -101,6 +101,10 @@ const navigation: NavEntry[] = [
 ];
 
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): React.ReactElement {
+  // Same unread-reply count the header's MessagesQuickLink already shows —
+  // reused here so the sidebar's own Inbox entry surfaces it too.
+  const { meta } = useConversations({ unread_only: true, page: 1, page_size: 1 });
+
   return (
     <SidebarNav>
       {navigation.map((entry) => {
@@ -133,6 +137,7 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
                 ? pathname.startsWith(entry.href)
                 : pathname === entry.href
             }
+            badge={entry.href === "/inbox" ? <UnreadCountBadge count={meta.total} /> : undefined}
             onClick={onNavigate}
           />
         );

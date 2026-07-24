@@ -1,6 +1,12 @@
 pyproject.toml
 app/__init__.py
 app/main.py
+app/agents/__init__.py
+app/agents/base.py
+app/agents/email_agent.py
+app/agents/generic_agent.py
+app/agents/reply_agent.py
+app/agents/research_agent.py
 app/api/v1/ai.py
 app/api/v1/analytics.py
 app/api/v1/auth.py
@@ -23,8 +29,10 @@ app/api/v1/router.py
 app/api/v1/track.py
 app/api/v1/unsubscribe.py
 app/api/v1/webhooks.py
+app/api/v1/ws_ai_jobs.py
 app/auth/cookies.py
 app/auth/dependencies.py
+app/core/asyncio_compat.py
 app/core/config.py
 app/core/redis.py
 app/core/utils.py
@@ -137,6 +145,7 @@ app/services/ai/ai_agent_service.py
 app/services/ai/ai_job_service.py
 app/services/ai/ai_settings_service.py
 app/services/ai/company_research_service.py
+app/services/ai/cost_tracking_callback.py
 app/services/ai/email_generation_service.py
 app/services/ai/llm_client.py
 app/services/ai/pricing.py
@@ -172,6 +181,7 @@ app/services/email/sender_client.py
 app/services/email/webhook_signature.py
 app/services/notifications/__init__.py
 app/services/notifications/notification_service.py
+app/tests/ai_fakes.py
 app/tests/conftest.py
 app/tests/test_ai.py
 app/tests/test_auth_register_login.py
@@ -186,6 +196,7 @@ app/tests/test_email_tracking.py
 app/tests/test_health.py
 app/tests/test_inbox.py
 app/tests/test_jwt_validation.py
+app/tests/test_langgraph_engine.py
 app/tests/test_leads.py
 app/tests/test_meetings.py
 app/tests/test_organizations.py
